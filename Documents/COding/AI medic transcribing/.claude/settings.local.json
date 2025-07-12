@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app:*)",
+      "Bash(mkdir:*)",
+      "Bash(ls:*)",
+      "Bash(npx shadcn@latest init:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(npm run dev:*)",
+      "Bash(pkill:*)",
+      "Bash(true)",
+      "Bash(npm run build:*)",
+      "Bash(npm start)",
+      "Bash(npm run lint)",
+      "Bash(grep:*)",
+      "Bash(npm start:*)",
+      "Bash(NODE_ENV=development npx next dev --port 3008)",
+      "Bash(killall:*)",
+      "Bash(npx next dev:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run:*)",
+      "Bash(git add:*)",
+      "Bash(rm:*)",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(git config:*)",
+      "Bash(git commit:*)",
+      "Bash(git branch:*)",
+      "WebFetch(domain:www.heidihealth.com)",
+      "Bash(git tag:*)",
+      "Bash(git checkout:*)",
+      "Bash(cp:*)",
+      "Bash(git clone:*)"
+    ],
+    "deny": [
+      "allow"
+    ]
+  }
+}
