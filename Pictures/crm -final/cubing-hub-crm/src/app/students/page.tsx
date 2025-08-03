@@ -1,3 +1,5 @@
+'use client'
+
 import StudentsPage from '@/components/students/StudentsPage'
 
 export default function Students() {
