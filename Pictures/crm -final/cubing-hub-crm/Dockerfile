@@ -19,6 +19,10 @@ RUN npm ci --ignore-scripts
 # Copy the entire project
 COPY . ./
 
+# Set build-time environment variables for Next.js build
+ENV NEXT_PUBLIC_SUPABASE_URL=https://supabasekong-c4kg0sokgkw40w8wgwgcg8gk.thecubinghub.com
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc1MTAxNjY2MCwiZXhwIjo0OTA2NjkwMjYwLCJyb2xlIjoic2VydmljZV9yb2xlIn0.iJt_FyaAsB6vuJ7VFV50m609fv8Pci8k5Qn4uvpNqZc
+
 # Build the Next.js app
 RUN npm run build
 
@@ -55,7 +59,7 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 # Set Supabase environment variables (override with actual values at runtime)
-ENV NEXT_PUBLIC_SUPABASE_URL=https://https://supabasekong-c4kg0sokgkw40w8wgwgcg8gk.thecubinghub.com
+ENV NEXT_PUBLIC_SUPABASE_URL=https://supabasekong-c4kg0sokgkw40w8wgwgcg8gk.thecubinghub.com
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc1MTAxNjY2MCwiZXhwIjo0OTA2NjkwMjYwLCJyb2xlIjoic2VydmljZV9yb2xlIn0.iJt_FyaAsB6vuJ7VFV50m609fv8Pci8k5Qn4uvpNqZc
 
 # Health check
