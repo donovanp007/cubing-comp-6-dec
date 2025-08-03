@@ -1,0 +1,36 @@
+node_modules
+.next
+.git
+.gitignore
+README.md
+Dockerfile
+.dockerignore
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Local env files
+.env*.local
+.env.development
+
+# Testing
+coverage
+.nyc_output
+
+# IDEs and editors
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vercel
+.vercel
+
+# Backup files
+*.backup
+*.bak

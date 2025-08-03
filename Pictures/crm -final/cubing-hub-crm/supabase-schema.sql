@@ -1,6 +1,14 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Drop existing tables if they exist (use with caution)
+DROP TABLE IF EXISTS sales_opportunities CASCADE;
+DROP TABLE IF EXISTS inventory_items CASCADE;
+DROP TABLE IF EXISTS reminders CASCADE;
+DROP TABLE IF EXISTS payments CASCADE;
+DROP TABLE IF EXISTS students CASCADE;
+DROP TABLE IF EXISTS schools CASCADE;
+
 -- Create schools table
 CREATE TABLE schools (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -130,14 +138,70 @@ INSERT INTO students (first_name, last_name, school_id, grade, parent_name, pare
   ('Emma', 'Brown', (SELECT id FROM schools WHERE name = 'Oakwood Elementary'), 4, 'Tom Brown', '+27-85-456-7890', 'tom.brown@email.com', 'Beginner Cubing', 'active', 'partial'),
   ('James', 'Davis', (SELECT id FROM schools WHERE name = 'Central Academy'), 7, 'Anna Davis', '+27-86-567-8901', 'anna.davis@email.com', 'Speed Cubing', 'completed', 'paid');
 
+-- Create inventory_items table
+CREATE TABLE inventory_items (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  category VARCHAR(50) DEFAULT 'other' CHECK (category IN ('cube', 'accessory', 'educational', 'other')),
+  sku VARCHAR(100) NOT NULL UNIQUE,
+  cost_price DECIMAL(10,2) NOT NULL,
+  selling_price DECIMAL(10,2) NOT NULL,
+  current_stock INTEGER NOT NULL DEFAULT 0,
+  minimum_stock INTEGER NOT NULL DEFAULT 0,
+  supplier VARCHAR(255) NOT NULL,
+  description TEXT DEFAULT '',
+  image_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create sales_opportunities table
+CREATE TABLE sales_opportunities (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+  item_id UUID REFERENCES inventory_items(id) ON DELETE CASCADE,
+  priority VARCHAR(10) DEFAULT 'medium' CHECK (priority IN ('high', 'medium', 'low')),
+  status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'contacted', 'sold', 'not_interested')),
+  notes TEXT DEFAULT '',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Add missing columns to schools table
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS monthly_cost DECIMAL(10,2) DEFAULT 0;
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS program_fee_per_student DECIMAL(10,2) DEFAULT 0;
+
+-- Add missing columns to students table  
+ALTER TABLE students ADD COLUMN IF NOT EXISTS items_purchased TEXT[] DEFAULT '{}';
+ALTER TABLE students ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
+
+-- Create triggers for new tables
+CREATE TRIGGER update_inventory_items_updated_at BEFORE UPDATE ON inventory_items
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_sales_opportunities_updated_at BEFORE UPDATE ON sales_opportunities
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert sample inventory items
+INSERT INTO inventory_items (name, category, sku, cost_price, selling_price, current_stock, minimum_stock, supplier, description) VALUES
+  ('3x3 Speed Cube', 'cube', 'CUBE-3X3-001', 5.00, 15.00, 50, 10, 'MoYu', 'Professional 3x3 speed cube for competitions'),
+  ('2x2 Pocket Cube', 'cube', 'CUBE-2X2-001', 3.00, 10.00, 30, 5, 'QiYi', 'Compact 2x2 cube perfect for beginners'),
+  ('Cube Timer', 'accessory', 'ACC-TIMER-001', 8.00, 20.00, 25, 5, 'SpeedStacks', 'Digital timer for cubing practice'),
+  ('Cube Mat', 'accessory', 'ACC-MAT-001', 2.00, 8.00, 40, 10, 'Generic', 'Soft mat to protect cubes during practice'),
+  ('Beginner Guide Book', 'educational', 'EDU-BOOK-001', 3.00, 12.00, 20, 5, 'Cubing Publishing', 'Step-by-step guide for new cubers');
+
 -- Enable Row Level Security
 ALTER TABLE schools ENABLE ROW LEVEL SECURITY;
 ALTER TABLE students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reminders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE inventory_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sales_opportunities ENABLE ROW LEVEL SECURITY;
 
 -- Create policies (for now, allow all operations - adjust based on authentication needs)
 CREATE POLICY "Allow all operations on schools" ON schools FOR ALL USING (true);
 CREATE POLICY "Allow all operations on students" ON students FOR ALL USING (true);
 CREATE POLICY "Allow all operations on payments" ON payments FOR ALL USING (true);
 CREATE POLICY "Allow all operations on reminders" ON reminders FOR ALL USING (true);
+CREATE POLICY "Allow all operations on inventory_items" ON inventory_items FOR ALL USING (true);
+CREATE POLICY "Allow all operations on sales_opportunities" ON sales_opportunities FOR ALL USING (true);

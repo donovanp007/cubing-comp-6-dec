@@ -9,146 +9,21 @@ import AddStudentModal from './AddStudentModal'
 import EditStudentModal from './EditStudentModal'
 import ImportExportModal from './ImportExportModal'
 import { StudentWithSchool, StudentInsert } from '@/types'
-
-// Mock data for development
-const mockStudents: StudentWithSchool[] = [
-  {
-    id: '1',
-    first_name: 'John',
-    last_name: 'Smith',
-    school_id: '1',
-    grade: 5,
-    parent_name: 'Mary Smith',
-    parent_phone: '+27-82-123-4567',
-    parent_email: 'mary.smith@email.com',
-    status: 'active',
-    class_type: 'Beginner Cubing',
-    payment_status: 'paid',
-    consent_received: true,
-    certificate_given: false,
-    cube_received: true,
-    items_purchased: ['3x3 Cube'],
-    tags: ['beginner', 'enthusiastic'],
-    notes: '',
-    created_at: '2024-01-15T10:00:00Z',
-    updated_at: '2024-01-15T10:00:00Z',
-    schools: { id: '1', name: 'Riverside Primary', target_enrollment: 30, current_enrollment: 18, created_at: '', updated_at: '', monthly_cost: 2500, program_fee_per_student: 450 }
-  },
-  {
-    id: '2',
-    first_name: 'Sarah',
-    last_name: 'Johnson',
-    school_id: '1',
-    grade: 6,
-    parent_name: 'David Johnson',
-    parent_phone: '+27-83-234-5678',
-    parent_email: 'david.johnson@email.com',
-    status: 'active',
-    class_type: 'Intermediate Cubing',
-    payment_status: 'outstanding',
-    consent_received: true,
-    certificate_given: false,
-    cube_received: false,
-    items_purchased: [],
-    tags: ['needs-follow-up', 'payment-issue'],
-    notes: 'Needs follow-up on payment',
-    created_at: '2024-01-20T10:00:00Z',
-    updated_at: '2024-01-20T10:00:00Z',
-    schools: { id: '1', name: 'Riverside Primary', target_enrollment: 30, current_enrollment: 18, created_at: '', updated_at: '', monthly_cost: 2500, program_fee_per_student: 450 }
-  },
-  {
-    id: '3',
-    first_name: 'Mike',
-    last_name: 'Williams',
-    school_id: '2',
-    grade: 9,
-    parent_name: 'Lisa Williams',
-    parent_phone: '+27-84-345-6789',
-    parent_email: 'lisa.williams@email.com',
-    status: 'in_progress',
-    class_type: 'Advanced Cubing',
-    payment_status: 'paid',
-    consent_received: true,
-    certificate_given: false,
-    cube_received: true,
-    items_purchased: ['3x3 Cube', 'Timer'],
-    tags: ['advanced', 'promising'],
-    notes: 'Progressing well',
-    created_at: '2024-02-01T10:00:00Z',
-    updated_at: '2024-02-01T10:00:00Z',
-    schools: { id: '2', name: 'Mountain View High', target_enrollment: 25, current_enrollment: 22, created_at: '', updated_at: '', monthly_cost: 3200, program_fee_per_student: 520 }
-  },
-  {
-    id: '4',
-    first_name: 'Emma',
-    last_name: 'Davis',
-    school_id: '3',
-    grade: 7,
-    parent_name: 'Robert Davis',
-    parent_phone: '+27-85-456-7890',
-    parent_email: 'robert.davis@email.com',
-    status: 'completed',
-    class_type: 'Beginner Cubing',
-    payment_status: 'paid',
-    consent_received: true,
-    certificate_given: true,
-    cube_received: true,
-    items_purchased: ['3x3 Cube', 'Certificate Frame', 'Carrying Case'],
-    tags: ['completed', 'excellent', 'graduate'],
-    notes: 'Excellent student, completed program',
-    created_at: '2023-11-10T10:00:00Z',
-    updated_at: '2024-01-10T10:00:00Z',
-    schools: { id: '3', name: 'Oakwood Elementary', target_enrollment: 35, current_enrollment: 31, created_at: '', updated_at: '', monthly_cost: 2800, program_fee_per_student: 480 }
-  },
-  {
-    id: '5',
-    first_name: 'Alex',
-    last_name: 'Thompson',
-    school_id: '2',
-    grade: 10,
-    parent_name: 'Jennifer Thompson',
-    parent_phone: '+27-86-567-8901',
-    parent_email: 'jennifer.thompson@email.com',
-    status: 'concern',
-    class_type: 'Intermediate Cubing',
-    payment_status: 'overdue',
-    consent_received: true,
-    certificate_given: false,
-    cube_received: false,
-    items_purchased: [],
-    tags: ['at-risk', 'payment-overdue', 'attendance-issues'],
-    notes: 'Payment overdue, attendance issues',
-    created_at: '2024-01-05T10:00:00Z',
-    updated_at: '2024-02-05T10:00:00Z',
-    schools: { id: '2', name: 'Mountain View High', target_enrollment: 25, current_enrollment: 22, created_at: '', updated_at: '', monthly_cost: 3200, program_fee_per_student: 520 }
-  },
-  {
-    id: '6',
-    first_name: 'Zoe',
-    last_name: 'Brown',
-    school_id: '4',
-    grade: 8,
-    parent_name: 'Michael Brown',
-    parent_phone: '+27-87-678-9012',
-    parent_email: 'michael.brown@email.com',
-    status: 'inactive',
-    class_type: 'Advanced Cubing',
-    payment_status: 'partial',
-    consent_received: false,
-    certificate_given: false,
-    cube_received: false,
-    items_purchased: [],
-    tags: ['inactive', 'dropped-out'],
-    notes: 'Dropped out mid-program',
-    created_at: '2023-12-01T10:00:00Z',
-    updated_at: '2024-01-15T10:00:00Z',
-    schools: { id: '4', name: 'Central Academy', target_enrollment: 40, current_enrollment: 35, created_at: '', updated_at: '', monthly_cost: 3500, program_fee_per_student: 600 }
-  },
-]
+import { useSupabaseStudents } from '@/hooks/useSupabaseStudents'
 
 export default function StudentsPage() {
-  const [students, setStudents] = useState<StudentWithSchool[]>(mockStudents)
-  const [loading, setLoading] = useState(false)
+  // Use real database with localStorage fallback - data will persist!
+  const { 
+    students, 
+    loading, 
+    error,
+    usingLocalStorage,
+    createStudent,
+    updateStudent,
+    deleteStudent,
+    importStudents
+  } = useSupabaseStudents()
+
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStudent, setSelectedStudent] = useState<StudentWithSchool | null>(null)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
@@ -164,11 +39,12 @@ export default function StudentsPage() {
     tags: [],
   })
 
+  // Log database connection status
   useEffect(() => {
-    // Simulate brief loading for mock data
-    setLoading(true)
-    setTimeout(() => setLoading(false), 500)
-  }, [])
+    if (error) {
+      console.warn('Database connection issue:', error)
+    }
+  }, [error])
 
   const filteredStudents = students.filter(student => {
     // Search filter
@@ -226,42 +102,24 @@ export default function StudentsPage() {
     setEditModalOpen(true)
   }
 
-  const handleDeleteStudent = (student: StudentWithSchool) => {
-    console.log('Delete student:', student)
-    // This will show a confirmation dialog
+  const handleDeleteStudent = async (student: StudentWithSchool) => {
+    const success = await deleteStudent(student.id)
+    if (!success) {
+      alert('Failed to delete student. Please try again.')
+    }
   }
 
   const handleAddStudent = () => {
     setAddModalOpen(true)
   }
 
-  const handleStudentAdded = (studentData: StudentInsert) => {
-    // Convert StudentInsert to StudentWithSchool by finding the school
-    const school = uniqueSchools.find(s => s.id === studentData.school_id)
-    const newStudent: StudentWithSchool = {
-      id: studentData.id || `student_${Date.now()}`,
-      first_name: studentData.first_name,
-      last_name: studentData.last_name,
-      school_id: studentData.school_id,
-      grade: studentData.grade,
-      parent_name: studentData.parent_name,
-      parent_phone: studentData.parent_phone,
-      parent_email: studentData.parent_email,
-      status: studentData.status || 'active',
-      class_type: studentData.class_type,
-      payment_status: studentData.payment_status || 'outstanding',
-      consent_received: studentData.consent_received || false,
-      certificate_given: studentData.certificate_given || false,
-      cube_received: studentData.cube_received || false,
-      items_purchased: studentData.items_purchased || [],
-      tags: studentData.tags || [],
-      notes: studentData.notes || '',
-      created_at: studentData.created_at || new Date().toISOString(),
-      updated_at: studentData.updated_at || new Date().toISOString(),
-      schools: school || { id: studentData.school_id, name: 'Unknown School', target_enrollment: 0, current_enrollment: 0, monthly_cost: 0, program_fee_per_student: 0, created_at: '', updated_at: '' }
+  const handleStudentAdded = async (studentData: StudentInsert) => {
+    const success = await createStudent(studentData)
+    if (success) {
+      setAddModalOpen(false)
+    } else {
+      alert('Failed to add student. Please try again.')
     }
-    
-    setStudents(prev => [newStudent, ...prev])
   }
 
   // Get unique schools for the add modal
@@ -285,42 +143,21 @@ export default function StudentsPage() {
     setFilterOpen(!filterOpen)
   }
 
-  const handleUpdateStudent = (studentId: string, updates: Partial<StudentWithSchool>) => {
-    setStudents(prev => prev.map(student => 
-      student.id === studentId 
-        ? { ...student, ...updates, updated_at: new Date().toISOString() }
-        : student
-    ))
+  const handleUpdateStudent = async (studentId: string, updates: Partial<StudentWithSchool>) => {
+    const success = await updateStudent(studentId, updates)
+    if (!success) {
+      alert('Failed to update student. Please try again.')
+    }
   }
 
-  const handleImportStudents = (importedStudents: StudentInsert[]) => {
-    const newStudents: StudentWithSchool[] = importedStudents.map(studentData => {
-      const school = uniqueSchools.find(s => s.id === studentData.school_id) || uniqueSchools[0]!
-      return {
-        id: studentData.id || `student_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        first_name: studentData.first_name,
-        last_name: studentData.last_name,
-        school_id: studentData.school_id,
-        grade: studentData.grade,
-        parent_name: studentData.parent_name,
-        parent_phone: studentData.parent_phone,
-        parent_email: studentData.parent_email,
-        status: studentData.status || 'active',
-        class_type: studentData.class_type,
-        payment_status: studentData.payment_status || 'outstanding',
-        consent_received: studentData.consent_received || false,
-        certificate_given: studentData.certificate_given || false,
-        cube_received: studentData.cube_received || false,
-        items_purchased: studentData.items_purchased || [],
-        tags: studentData.tags || [],
-        notes: studentData.notes || '',
-        created_at: studentData.created_at || new Date().toISOString(),
-        updated_at: studentData.updated_at || new Date().toISOString(),
-        schools: school
-      }
-    })
-    
-    setStudents(prev => [...newStudents, ...prev])
+  const handleImportStudents = async (importedStudents: StudentInsert[]) => {
+    const result = await importStudents(importedStudents)
+    if (result.errors > 0) {
+      alert(`Import completed with ${result.errors} errors. ${result.success} students imported successfully.`)
+    } else {
+      alert(`Successfully imported ${result.success} students.`)
+    }
+    setImportExportModalOpen(false)
   }
 
   return (
@@ -333,6 +170,18 @@ export default function StudentsPage() {
       onSearch={handleSearch}
     >
       <div className="space-y-6">
+        {/* Status indicator */}
+        {(error || usingLocalStorage) && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span className="text-blue-800 text-sm font-medium">
+                {usingLocalStorage ? 'Using local storage - data persists in browser' : 'Database temporarily unavailable - using local storage'}
+              </span>
+            </div>
+          </div>
+        )}
+
         <StudentsFilter
           students={students}
           onFilterChange={handleFilterChange}

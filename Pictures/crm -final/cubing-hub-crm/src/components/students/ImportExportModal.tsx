@@ -40,17 +40,15 @@ interface ImportValidation {
 }
 
 const CSV_HEADERS = [
-  'first_name',
-  'last_name', 
-  'school_name',
-  'grade',
-  'parent_name',
-  'parent_phone',
-  'parent_email',
-  'class_type',
-  'status',
-  'payment_status',
-  'notes'
+  'Student Name',
+  'Parent Name',
+  'Phone',
+  'Parent email',
+  'Yes',
+  'Kids Classes',
+  'Current Paid',
+  'INV',
+  'photo consent'
 ]
 
 export default function ImportExportModal({
@@ -69,17 +67,15 @@ export default function ImportExportModal({
     const csvContent = [
       CSV_HEADERS.join(','),
       ...students.map(student => [
-        `"${student.first_name}"`,
-        `"${student.last_name}"`,
-        `"${student.schools?.name || ''}"`,
-        student.grade,
+        `"${student.first_name} ${student.last_name}"`,
         `"${student.parent_name}"`,
         `"${student.parent_phone}"`,
         `"${student.parent_email}"`,
+        student.status === 'active' ? 'Yes' : 'No',
         `"${student.class_type}"`,
-        student.status,
-        student.payment_status,
-        `"${student.notes || ''}"`
+        student.payment_status === 'paid' ? 'Yes' : 'No',
+        `"${student.schools?.name || ''}"`,
+        student.consent_received ? 'Yes' : 'No'
       ].join(','))
     ].join('\n')
 
@@ -104,7 +100,7 @@ export default function ImportExportModal({
     }
 
     // Check headers
-    const requiredHeaders = ['first_name', 'last_name', 'parent_name', 'parent_phone', 'parent_email']
+    const requiredHeaders = ['Student Name', 'Parent Name', 'Phone', 'Parent email']
     const missingHeaders = requiredHeaders.filter(h => !headers.includes(h))
     
     if (missingHeaders.length > 0) {
@@ -137,23 +133,23 @@ export default function ImportExportModal({
         studentData[header] = values[i]
       })
 
+      // Parse Student Name into first and last name
+      const fullName = studentData['Student Name']?.trim() || ''
+      const nameParts = fullName.split(' ')
+      const firstName = nameParts[0] || ''
+      const lastName = nameParts.slice(1).join(' ') || nameParts[0] || ''
+
       // Validate required fields
       const errors: string[] = []
       
-      if (!studentData.first_name?.trim()) errors.push('First name is required')
-      if (!studentData.last_name?.trim()) errors.push('Last name is required')
-      if (!studentData.parent_name?.trim()) errors.push('Parent name is required')
-      if (!studentData.parent_phone?.trim()) errors.push('Parent phone is required')
-      if (!studentData.parent_email?.trim()) errors.push('Parent email is required')
+      if (!fullName) errors.push('Student Name is required')
+      if (!studentData['Parent Name']?.trim()) errors.push('Parent Name is required')
+      if (!studentData['Phone']?.trim()) errors.push('Phone is required')
+      if (!studentData['Parent email']?.trim()) errors.push('Parent email is required')
       
       // Validate email format
-      if (studentData.parent_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(studentData.parent_email)) {
+      if (studentData['Parent email'] && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(studentData['Parent email'])) {
         errors.push('Invalid email format')
-      }
-
-      // Validate grade
-      if (studentData.grade && (isNaN(Number(studentData.grade)) || Number(studentData.grade) < 1 || Number(studentData.grade) > 12)) {
-        errors.push('Grade must be between 1-12')
       }
 
       if (errors.length > 0) {
@@ -166,24 +162,22 @@ export default function ImportExportModal({
       } else {
         // Create valid student record
         const validStudent: StudentInsert = {
-          first_name: studentData.first_name.trim(),
-          last_name: studentData.last_name.trim(),
-          school_id: '1', // Default school - could be mapped from school_name
-          grade: Number(studentData.grade) || 5,
-          parent_name: studentData.parent_name.trim(),
-          parent_phone: studentData.parent_phone.trim(),
-          parent_email: studentData.parent_email.trim(),
-          class_type: studentData.class_type || 'Beginner Cubing',
-          status: ['active', 'in_progress', 'completed', 'concern', 'inactive'].includes(studentData.status) 
-            ? studentData.status as any : 'active',
-          payment_status: ['paid', 'outstanding', 'partial', 'overdue'].includes(studentData.payment_status)
-            ? studentData.payment_status as any : 'outstanding',
-          consent_received: false,
+          first_name: firstName,
+          last_name: lastName,
+          school_id: '', // Will be auto-assigned in createStudent
+          grade: 5, // Default grade
+          parent_name: studentData['Parent Name'].trim(),
+          parent_phone: studentData['Phone'].trim(),
+          parent_email: studentData['Parent email'].trim(),
+          class_type: studentData['Kids Classes'] || 'Beginner Cubing',
+          status: studentData['Yes'] === 'Yes' ? 'active' : 'inactive',
+          payment_status: studentData['Current Paid'] === 'Yes' ? 'paid' : 'outstanding',
+          consent_received: studentData['photo consent'] === 'Yes',
           certificate_given: false,
           cube_received: false,
           items_purchased: [],
           tags: [],
-          notes: studentData.notes || ''
+          notes: studentData['INV'] || ''
         }
         validation.valid.push(validStudent)
       }
@@ -237,17 +231,15 @@ export default function ImportExportModal({
     const templateContent = [
       CSV_HEADERS.join(','),
       [
-        '"John"',
-        '"Doe"', 
-        '"Example School"',
-        '5',
+        '"John Doe"',
         '"Jane Doe"',
         '"+27-82-123-4567"',
         '"jane.doe@email.com"',
+        'Yes',
         '"Beginner Cubing"',
-        'active',
-        'outstanding',
-        '"Sample student record"'
+        'Yes',
+        '"Example School"',
+        'Yes'
       ].join(',')
     ].join('\n')
 
