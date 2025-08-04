@@ -237,8 +237,8 @@ export default function StudentsFilter({
                   <Checkbox
                     id={`school-${school}`}
                     checked={filters.schools.includes(school)}
-                    onCheckedChange={(checked) => 
-                      handleSchoolChange(school, checked as boolean)
+                    onCheckedChange={(checked: boolean) => 
+                      handleSchoolChange(school, checked)
                     }
                   />
                   <label
@@ -261,8 +261,8 @@ export default function StudentsFilter({
                   <Checkbox
                     id={`grade-${grade}`}
                     checked={filters.grades.includes(grade)}
-                    onCheckedChange={(checked) => 
-                      handleGradeChange(grade, checked as boolean)
+                    onCheckedChange={(checked: boolean) => 
+                      handleGradeChange(grade, checked)
                     }
                   />
                   <label
@@ -285,8 +285,8 @@ export default function StudentsFilter({
                   <Checkbox
                     id={`payment-${status}`}
                     checked={filters.paymentStatus.includes(status)}
-                    onCheckedChange={(checked) => 
-                      handlePaymentStatusChange(status, checked as boolean)
+                    onCheckedChange={(checked: boolean) => 
+                      handlePaymentStatusChange(status, checked)
                     }
                   />
                   <label
@@ -309,8 +309,8 @@ export default function StudentsFilter({
                   <Checkbox
                     id={`student-${status}`}
                     checked={filters.studentStatus.includes(status)}
-                    onCheckedChange={(checked) => 
-                      handleStudentStatusChange(status, checked as boolean)
+                    onCheckedChange={(checked: boolean) => 
+                      handleStudentStatusChange(status, checked)
                     }
                   />
                   <label
@@ -333,8 +333,8 @@ export default function StudentsFilter({
                   <Checkbox
                     id={`tag-${tag}`}
                     checked={filters.tags.includes(tag)}
-                    onCheckedChange={(checked) => 
-                      handleTagChange(tag, checked as boolean)
+                    onCheckedChange={(checked: boolean) => 
+                      handleTagChange(tag, checked)
                     }
                   />
                   <label

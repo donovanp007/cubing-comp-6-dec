@@ -335,7 +335,7 @@ export default function StudentsTable({
               <TableCell onClick={(e) => e.stopPropagation()}>
                 <Select
                   value={student.status}
-                  onValueChange={(value) => handleStatusChange(student, value)}
+                  onValueChange={(value: string) => handleStatusChange(student, value)}
                 >
                   <SelectTrigger className={`h-8 w-auto border-0 bg-transparent px-2 ${getStatusColor(student.status)}`}>
                     <SelectValue>
@@ -367,7 +367,7 @@ export default function StudentsTable({
               <TableCell onClick={(e) => e.stopPropagation()}>
                 <Select
                   value={student.payment_status}
-                  onValueChange={(value) => handlePaymentStatusChange(student, value)}
+                  onValueChange={(value: string) => handlePaymentStatusChange(student, value)}
                 >
                   <SelectTrigger className={`h-8 w-auto border-0 bg-transparent px-2 ${getPaymentStatusColor(student.payment_status)}`}>
                     <SelectValue>

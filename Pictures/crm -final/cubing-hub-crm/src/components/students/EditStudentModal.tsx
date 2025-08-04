@@ -210,7 +210,7 @@ export default function EditStudentModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Grade *</FormLabel>
-                    <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                    <Select onValueChange={(value: string) => field.onChange(parseInt(value))} value={field.value?.toString()}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select grade" />

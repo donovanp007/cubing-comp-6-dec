@@ -205,7 +205,7 @@ export default function QuickProfileModal({
               {isEditing ? (
                 <Select
                   value={editForm.status}
-                  onValueChange={(value) => handleInputChange('status', value)}
+                  onValueChange={(value: string) => handleInputChange('status', value)}
                 >
                   <SelectTrigger className="h-8">
                     <SelectValue />
@@ -229,7 +229,7 @@ export default function QuickProfileModal({
               {isEditing ? (
                 <Select
                   value={editForm.payment_status}
-                  onValueChange={(value) => handleInputChange('payment_status', value)}
+                  onValueChange={(value: string) => handleInputChange('payment_status', value)}
                 >
                   <SelectTrigger className="h-8">
                     <SelectValue />
