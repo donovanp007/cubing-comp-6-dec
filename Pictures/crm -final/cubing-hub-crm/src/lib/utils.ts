@@ -113,6 +113,23 @@ export function getStatusColor(status: string): string {
   }
 }
 
+export function getStatusBadgeVariant(status: string): "default" | "destructive" | "outline" | "secondary" | null {
+  switch (status) {
+    case 'active':
+      return 'default'
+    case 'in_progress':
+      return 'secondary'
+    case 'completed':
+      return 'default'
+    case 'concern':
+      return 'destructive'
+    case 'inactive':
+      return 'outline'
+    default:
+      return 'default'
+  }
+}
+
 export function getPaymentStatusColor(status: string): string {
   switch (status) {
     case 'paid':

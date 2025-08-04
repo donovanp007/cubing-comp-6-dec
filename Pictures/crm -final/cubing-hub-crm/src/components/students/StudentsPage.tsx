@@ -124,11 +124,11 @@ export default function StudentsPage() {
 
   // Get unique schools for the add modal
   const uniqueSchools = [
-    { id: '1', name: 'Riverside Primary', target_enrollment: 30, current_enrollment: 18, monthly_cost: 2500, program_fee_per_student: 450, created_at: '', updated_at: '' },
-    { id: '2', name: 'Mountain View High', target_enrollment: 25, current_enrollment: 22, monthly_cost: 3200, program_fee_per_student: 520, created_at: '', updated_at: '' },
-    { id: '3', name: 'Oakwood Elementary', target_enrollment: 35, current_enrollment: 31, monthly_cost: 2800, program_fee_per_student: 480, created_at: '', updated_at: '' },
-    { id: '4', name: 'Central Academy', target_enrollment: 40, current_enrollment: 35, monthly_cost: 3500, program_fee_per_student: 600, created_at: '', updated_at: '' },
-    { id: '5', name: 'Sunrise School', target_enrollment: 20, current_enrollment: 15, monthly_cost: 2200, program_fee_per_student: 400, created_at: '', updated_at: '' },
+    { id: '550e8400-e29b-41d4-a716-446655440001', name: 'Riverside Primary', target_enrollment: 30, current_enrollment: 18, monthly_cost: 2500, program_fee_per_student: 450, created_at: '', updated_at: '' },
+    { id: '550e8400-e29b-41d4-a716-446655440002', name: 'Mountain View High', target_enrollment: 25, current_enrollment: 22, monthly_cost: 3200, program_fee_per_student: 520, created_at: '', updated_at: '' },
+    { id: '550e8400-e29b-41d4-a716-446655440003', name: 'Oakwood Elementary', target_enrollment: 35, current_enrollment: 31, monthly_cost: 2800, program_fee_per_student: 480, created_at: '', updated_at: '' },
+    { id: '550e8400-e29b-41d4-a716-446655440004', name: 'Central Academy', target_enrollment: 40, current_enrollment: 35, monthly_cost: 3500, program_fee_per_student: 600, created_at: '', updated_at: '' },
+    { id: '550e8400-e29b-41d4-a716-446655440005', name: 'Sunrise School', target_enrollment: 20, current_enrollment: 15, monthly_cost: 2200, program_fee_per_student: 400, created_at: '', updated_at: '' },
   ]
 
   const handleSearch = (query: string) => {

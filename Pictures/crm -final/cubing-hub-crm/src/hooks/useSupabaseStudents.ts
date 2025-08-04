@@ -76,8 +76,46 @@ export function useSupabaseStudents() {
     }
   }
 
+  // Helper function to find or create school by name
+  const findOrCreateSchool = async (schoolName: string): Promise<string> => {
+    try {
+      // First, try to find existing school by name
+      const { data: existingSchools, error: searchError } = await supabase
+        .from('schools')
+        .select('id')
+        .eq('name', schoolName)
+        .limit(1)
+
+      if (searchError) throw searchError
+
+      if (existingSchools && existingSchools.length > 0) {
+        return existingSchools[0].id
+      }
+
+      // Create new school if not found
+      const { data: newSchool, error: createError } = await supabase
+        .from('schools')
+        .insert([{
+          name: schoolName,
+          target_enrollment: 30,
+          current_enrollment: 0,
+          monthly_cost: 2500,
+          program_fee_per_student: 450
+        }])
+        .select('id')
+        .single()
+
+      if (createError) throw createError
+
+      return newSchool.id
+    } catch (error) {
+      console.error('Error finding/creating school:', error)
+      return crypto.randomUUID() // Fallback
+    }
+  }
+
   // Create a new student
-  const createStudent = async (studentData: StudentInsert): Promise<boolean> => {
+  const createStudent = async (studentData: StudentInsert | any): Promise<boolean> => {
     try {
       setError(null)
 
@@ -89,6 +127,11 @@ export function useSupabaseStudents() {
       }
 
       // Try Supabase
+      // Handle school lookup/creation if school_name is provided
+      if (studentData.school_name && !studentData.school_id) {
+        studentData.school_id = await findOrCreateSchool(studentData.school_name)
+      }
+
       // Ensure we have a valid school_id
       if (!studentData.school_id) {
         const { data: schools } = await supabase.from('schools').select('id').limit(1)
@@ -102,13 +145,16 @@ export function useSupabaseStudents() {
             .select('id')
             .single()
           
-          studentData.school_id = newSchool?.id || '1'
+          studentData.school_id = newSchool?.id || crypto.randomUUID()
         }
       }
 
+      // Remove school_name from studentData as it's not a database field
+      const { school_name, ...cleanStudentData } = studentData
+
       const { data, error: insertError } = await supabase
         .from('students')
-        .insert([studentData])
+        .insert([cleanStudentData])
         .select(`
           *,
           schools (

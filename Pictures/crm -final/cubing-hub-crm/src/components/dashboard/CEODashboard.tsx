@@ -61,7 +61,7 @@ const mockAlerts: AlertItem[] = [
     actionRequired: false,
   },
   {
-    id: '3',
+    id: '550e8400-e29b-41d4-a716-446655440003',
     type: 'success',
     title: 'Monthly Target Achieved',
     message: 'Congratulations! You\'ve exceeded this month\'s enrollment target by 8%',

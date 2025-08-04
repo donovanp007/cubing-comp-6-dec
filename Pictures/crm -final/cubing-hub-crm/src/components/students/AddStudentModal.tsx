@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   Dialog,
@@ -31,7 +31,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { StudentWithSchool, StudentInsert } from '@/types'
-import { Plus, Save, X } from 'lucide-react'
+import { Plus, Save, X, Building } from 'lucide-react'
 
 interface AddStudentModalProps {
   open: boolean
@@ -95,18 +95,43 @@ export default function AddStudentModal({
   schools,
 }: AddStudentModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isAddingSchool, setIsAddingSchool] = useState(false)
+  const [newSchoolName, setNewSchoolName] = useState('')
+  const [localSchools, setLocalSchools] = useState(schools)
 
   const form = useForm<StudentFormData>({
     defaultValues,
   })
 
+  // Update local schools when prop changes
+  React.useEffect(() => {
+    setLocalSchools(schools)
+  }, [schools])
+
+  const handleAddSchool = () => {
+    if (newSchoolName.trim()) {
+      const newSchool = {
+        id: crypto.randomUUID(),
+        name: newSchoolName.trim()
+      }
+      setLocalSchools(prev => [...prev, newSchool])
+      form.setValue('school_id', newSchool.id)
+      setNewSchoolName('')
+      setIsAddingSchool(false)
+    }
+  }
+
   const onSubmit = async (data: StudentFormData) => {
     setIsSubmitting(true)
     try {
+      // Find the selected school to get the name for potential creation
+      const selectedSchool = localSchools.find(school => school.id === data.school_id)
+      
       // Convert form data to StudentInsert format
-      const studentData: StudentInsert = {
+      const studentData: any = {
         ...data,
-        id: `student_${Date.now()}`, // Generate simple ID for demo
+        id: crypto.randomUUID(), // Generate proper UUID
+        school_name: selectedSchool?.name, // Add school name for lookup/creation
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
@@ -187,20 +212,58 @@ export default function AddStudentModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>School *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select school" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {schools.map((school) => (
-                          <SelectItem key={school.id} value={school.id}>
-                            {school.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="space-y-2">
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select school" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {localSchools.map((school) => (
+                            <SelectItem key={school.id} value={school.id}>
+                              {school.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      {/* Add new school inline form */}
+                      {isAddingSchool ? (
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Enter school name"
+                            value={newSchoolName}
+                            onChange={(e) => setNewSchoolName(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleAddSchool()}
+                          />
+                          <Button size="sm" onClick={handleAddSchool} disabled={!newSchoolName.trim()}>
+                            <Save className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => {
+                              setIsAddingSchool(false)
+                              setNewSchoolName('')
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsAddingSchool(true)}
+                          className="w-full"
+                        >
+                          <Building className="h-4 w-4 mr-2" />
+                          Add New School
+                        </Button>
+                      )}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

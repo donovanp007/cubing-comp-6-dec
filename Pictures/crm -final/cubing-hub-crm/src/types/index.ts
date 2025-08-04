@@ -9,6 +9,11 @@ export type SalesOpportunity = Database['public']['Tables']['sales_opportunities
 
 export type StudentInsert = Database['public']['Tables']['students']['Insert']
 export type StudentUpdate = Database['public']['Tables']['students']['Update']
+
+// Extended type for import functionality that includes school_name for lookup/creation
+export interface StudentImport extends StudentInsert {
+  school_name?: string
+}
 export type SchoolInsert = Database['public']['Tables']['schools']['Insert']
 export type SchoolUpdate = Database['public']['Tables']['schools']['Update']
 

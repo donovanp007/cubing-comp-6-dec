@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { StudentWithSchool } from '@/types'
 import { getInitials, getStatusColor, getPaymentStatusColor, formatPhoneNumber, openWhatsApp, openEmail } from '@/lib/utils'
-import { MoreHorizontal, Edit, Trash2, Eye, MessageCircle, Mail, Tag, Plus, X, Upload, Download } from 'lucide-react'
+import { MoreHorizontal, Edit, Trash2, Eye, MessageCircle, Mail, Tag, Plus, X, Upload, Download, CheckSquare, Square, Users } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -98,6 +98,41 @@ export default function StudentsTable({
     }
   }
 
+  // Bulk update functions
+  const handleBulkStatusUpdate = (newStatus: string) => {
+    if (onUpdateStudent && selectedRows.size > 0) {
+      selectedRows.forEach(studentId => {
+        onUpdateStudent(studentId, { status: newStatus as any })
+      })
+      setSelectedRows(new Set()) // Clear selection after update
+    }
+  }
+
+  const handleBulkPaymentStatusUpdate = (newPaymentStatus: string) => {
+    if (onUpdateStudent && selectedRows.size > 0) {
+      selectedRows.forEach(studentId => {
+        onUpdateStudent(studentId, { payment_status: newPaymentStatus as any })
+      })
+      setSelectedRows(new Set()) // Clear selection after update
+    }
+  }
+
+  const handleBulkAddTag = (tag: string) => {
+    if (onUpdateStudent && selectedRows.size > 0 && tag.trim()) {
+      selectedRows.forEach(studentId => {
+        const student = students.find(s => s.id === studentId)
+        if (student) {
+          const currentTags = student.tags || []
+          if (!currentTags.includes(tag.trim())) {
+            const updatedTags = [...currentTags, tag.trim()]
+            onUpdateStudent(studentId, { tags: updatedTags })
+          }
+        }
+      })
+      setSelectedRows(new Set()) // Clear selection after update
+    }
+  }
+
   const handleRowClick = (student: StudentWithSchool, event: React.MouseEvent) => {
     // Get click position for modal placement
     const rect = event.currentTarget.getBoundingClientRect()
@@ -125,26 +160,104 @@ export default function StudentsTable({
   return (
     <div className="rounded-md border bg-white shadow-sm">
       {/* Action Bar */}
-      <div className="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <span className="text-sm font-medium text-gray-700">
-            {students.length} student{students.length !== 1 ? 's' : ''}
-          </span>
+      <div className="px-4 py-3 border-b bg-gray-50">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm font-medium text-gray-700">
+              {students.length} student{students.length !== 1 ? 's' : ''}
+            </span>
+            {selectedRows.size > 0 && (
+              <Badge variant="default" className="bg-blue-100 text-blue-800">
+                {selectedRows.size} selected
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center space-x-2">
+            {onImportExport && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onImportExport}
+                className="flex items-center space-x-1"
+              >
+                <Upload className="h-4 w-4" />
+                <Download className="h-4 w-4" />
+                <span>Import/Export</span>
+              </Button>
+            )}
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          {onImportExport && (
+        
+        {/* Bulk Actions Bar */}
+        {selectedRows.size > 0 && (
+          <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+            <Users className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-700">Bulk Actions:</span>
+            
+            {/* Bulk Status Update */}
+            <Select onValueChange={handleBulkStatusUpdate}>
+              <SelectTrigger className="w-32 h-8">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="concern">Concern</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {/* Bulk Payment Status Update */}
+            <Select onValueChange={handleBulkPaymentStatusUpdate}>
+              <SelectTrigger className="w-32 h-8">
+                <SelectValue placeholder="Payment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="outstanding">Outstanding</SelectItem>
+                <SelectItem value="partial">Partial</SelectItem>
+                <SelectItem value="overdue">Overdue</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {/* Bulk Add Tag */}
+            <div className="flex items-center gap-1">
+              <Input
+                placeholder="Add tag..."
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                className="w-24 h-8"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleBulkAddTag(newTag)
+                    setNewTag('')
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  handleBulkAddTag(newTag)
+                  setNewTag('')
+                }}
+                className="h-8 px-2"
+              >
+                <Tag className="h-3 w-3" />
+              </Button>
+            </div>
+            
             <Button
-              variant="outline"
               size="sm"
-              onClick={onImportExport}
-              className="flex items-center space-x-1"
+              variant="ghost"
+              onClick={() => setSelectedRows(new Set())}
+              className="h-8 px-2"
             >
-              <Upload className="h-4 w-4" />
-              <Download className="h-4 w-4" />
-              <span>Import/Export</span>
+              <X className="h-3 w-3" />
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
       
       <Table>

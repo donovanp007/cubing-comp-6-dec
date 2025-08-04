@@ -20,8 +20,8 @@ RUN npm ci --ignore-scripts
 COPY . ./
 
 # Set build-time environment variables for Next.js build
-ENV NEXT_PUBLIC_SUPABASE_URL=https://supabasekong-c4kg0sokgkw40w8wgwgcg8gk.thecubinghub.com
-ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc1MTAxNjY2MCwiZXhwIjo0OTA2NjkwMjYwLCJyb2xlIjoic2VydmljZV9yb2xlIn0.iJt_FyaAsB6vuJ7VFV50m609fv8Pci8k5Qn4uvpNqZc
+ENV NEXT_PUBLIC_SUPABASE_URL=https://xhwurctmoubmzsgybpmu.supabase.co
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhod3VyY3Rtb3VibXpzZ3licG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQyNDg3MjQsImV4cCI6MjA2OTgyNDcyNH0.-CATWf8WbxsKjs-emID2ZMU8547gEXhXjB2g46Pm7ys
 
 # Build the Next.js app
 RUN npm run build
@@ -59,8 +59,9 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 # Set Supabase environment variables (override with actual values at runtime)
-ENV NEXT_PUBLIC_SUPABASE_URL=https://supabasekong-c4kg0sokgkw40w8wgwgcg8gk.thecubinghub.com
-ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc1MTAxNjY2MCwiZXhwIjo0OTA2NjkwMjYwLCJyb2xlIjoic2VydmljZV9yb2xlIn0.iJt_FyaAsB6vuJ7VFV50m609fv8Pci8k5Qn4uvpNqZc
+ENV NEXT_PUBLIC_SUPABASE_URL=https://xhwurctmoubmzsgybpmu.supabase.co
+# Using service role key temporarily for development - replace with proper anon key for production
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhod3VyY3Rtb3VibXpzZ3licG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQyNDg3MjQsImV4cCI6MjA2OTgyNDcyNH0.-CATWf8WbxsKjs-emID2ZMU8547gEXhXjB2g46Pm7ys
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \

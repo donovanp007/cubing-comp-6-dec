@@ -32,7 +32,7 @@ const mockSchoolProgress: SchoolProgress[] = [
     percentComplete: 88.0,
   },
   {
-    id: '3',
+    id: '550e8400-e29b-41d4-a716-446655440003',
     name: 'Oakwood Elementary',
     current: 31,
     target: 35,

@@ -4,10 +4,13 @@ import { StudentWithSchool, StudentInsert, StudentUpdate } from '@/types'
 const STUDENTS_KEY = 'cubing_crm_students'
 const SCHOOLS_KEY = 'cubing_crm_schools'
 
+// Generate consistent default UUID for default school
+const DEFAULT_SCHOOL_ID = '550e8400-e29b-41d4-a716-446655440000'
+
 // Default school data
 const DEFAULT_SCHOOLS = [
   {
-    id: '1',
+    id: DEFAULT_SCHOOL_ID,
     name: 'Default School',
     target_enrollment: 30,
     current_enrollment: 0,
@@ -21,10 +24,10 @@ const DEFAULT_SCHOOLS = [
 // Default student data
 const DEFAULT_STUDENTS = [
   {
-    id: '1',
+    id: crypto.randomUUID(),
     first_name: 'John',
     last_name: 'Smith',
-    school_id: '1',
+    school_id: DEFAULT_SCHOOL_ID,
     grade: 5,
     parent_name: 'Mary Smith',
     parent_phone: '+27-82-123-4567',
@@ -85,8 +88,8 @@ export class LocalStorageDB {
     
     const newStudent = {
       ...studentData,
-      id: Date.now().toString(),
-      school_id: studentData.school_id || schools[0]?.id || '1',
+      id: crypto.randomUUID(),
+      school_id: studentData.school_id || schools[0]?.id || crypto.randomUUID(),
       status: studentData.status || 'active',
       payment_status: studentData.payment_status || 'outstanding',
       consent_received: studentData.consent_received || false,

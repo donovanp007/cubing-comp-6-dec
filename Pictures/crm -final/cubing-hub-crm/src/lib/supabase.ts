@@ -1,17 +1,22 @@
-import { createClient } from '@supabase/supabase-js'
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-key'
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// Use anon key since RLS is disabled - this should work for development
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Singleton pattern to ensure only one Supabase client instance
+let supabaseInstance: SupabaseClient | null = null
 
-// For server-side usage
-export function createSupabaseClient() {
-  return createClient(supabaseUrl, supabaseServiceKey)
+function getSupabaseClient() {
+  if (!supabaseInstance) {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        storageKey: 'cubing-hub-auth',
+      },
+    })
+  }
+  return supabaseInstance
 }
 
-// Alternative client using anon key (for when you get the right key)
-export const supabaseAnon = createBrowserClient(supabaseUrl, supabaseAnonKey)
+export const supabase = getSupabaseClient()

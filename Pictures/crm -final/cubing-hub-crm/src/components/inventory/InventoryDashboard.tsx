@@ -55,7 +55,7 @@ const mockInventoryItems: InventoryItem[] = [
     updated_at: '2024-01-01T00:00:00Z'
   },
   {
-    id: '3',
+    id: '550e8400-e29b-41d4-a716-446655440003',
     name: 'Professional Timer',
     category: 'accessory',
     sku: 'ACC-TIMER-001',

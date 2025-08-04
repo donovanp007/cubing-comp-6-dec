@@ -20,7 +20,7 @@ import {
   X,
   Eye
 } from 'lucide-react'
-import { StudentWithSchool, StudentInsert } from '@/types'
+import { StudentWithSchool, StudentInsert, StudentImport } from '@/types'
 
 interface ImportExportModalProps {
   open: boolean
@@ -30,7 +30,7 @@ interface ImportExportModalProps {
 }
 
 interface ImportValidation {
-  valid: StudentInsert[]
+  valid: StudentImport[]
   errors: Array<{
     row: number
     field: string
@@ -44,10 +44,7 @@ const CSV_HEADERS = [
   'Parent Name',
   'Phone',
   'Parent email',
-  'Yes',
-  'Kids Classes',
-  'Current Paid',
-  'INV',
+  'School Name',
   'photo consent'
 ]
 
@@ -71,9 +68,6 @@ export default function ImportExportModal({
         `"${student.parent_name}"`,
         `"${student.parent_phone}"`,
         `"${student.parent_email}"`,
-        student.status === 'active' ? 'Yes' : 'No',
-        `"${student.class_type}"`,
-        student.payment_status === 'paid' ? 'Yes' : 'No',
         `"${student.schools?.name || ''}"`,
         student.consent_received ? 'Yes' : 'No'
       ].join(','))
@@ -100,7 +94,7 @@ export default function ImportExportModal({
     }
 
     // Check headers
-    const requiredHeaders = ['Student Name', 'Parent Name', 'Phone', 'Parent email']
+    const requiredHeaders = ['Student Name', 'Parent Name', 'Phone', 'Parent email', 'School Name']
     const missingHeaders = requiredHeaders.filter(h => !headers.includes(h))
     
     if (missingHeaders.length > 0) {
@@ -146,6 +140,7 @@ export default function ImportExportModal({
       if (!studentData['Parent Name']?.trim()) errors.push('Parent Name is required')
       if (!studentData['Phone']?.trim()) errors.push('Phone is required')
       if (!studentData['Parent email']?.trim()) errors.push('Parent email is required')
+      if (!studentData['School Name']?.trim()) errors.push('School Name is required')
       
       // Validate email format
       if (studentData['Parent email'] && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(studentData['Parent email'])) {
@@ -161,23 +156,24 @@ export default function ImportExportModal({
         })
       } else {
         // Create valid student record
-        const validStudent: StudentInsert = {
+        const validStudent: StudentImport = {
           first_name: firstName,
           last_name: lastName,
-          school_id: '', // Will be auto-assigned in createStudent
-          grade: 5, // Default grade
+          school_id: '', // Will be resolved from School Name
+          school_name: studentData['School Name'].trim(), // Add this for school lookup/creation
+          grade: 5, // Default grade since we don't collect it
           parent_name: studentData['Parent Name'].trim(),
           parent_phone: studentData['Phone'].trim(),
           parent_email: studentData['Parent email'].trim(),
-          class_type: studentData['Kids Classes'] || 'Beginner Cubing',
-          status: studentData['Yes'] === 'Yes' ? 'active' : 'inactive',
-          payment_status: studentData['Current Paid'] === 'Yes' ? 'paid' : 'outstanding',
+          class_type: 'Beginner Cubing', // Default class type
+          status: 'active', // Default status
+          payment_status: 'outstanding', // Default payment status
           consent_received: studentData['photo consent'] === 'Yes',
           certificate_given: false,
           cube_received: false,
           items_purchased: [],
           tags: [],
-          notes: studentData['INV'] || ''
+          notes: ''
         }
         validation.valid.push(validStudent)
       }
@@ -235,10 +231,7 @@ export default function ImportExportModal({
         '"Jane Doe"',
         '"+27-82-123-4567"',
         '"jane.doe@email.com"',
-        'Yes',
-        '"Beginner Cubing"',
-        'Yes',
-        '"Example School"',
+        '"Riverside Primary"',
         'Yes'
       ].join(',')
     ].join('\n')
