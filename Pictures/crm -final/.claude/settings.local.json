@@ -24,7 +24,10 @@
       "Bash(docker build:*)",
       "Bash(pkill:*)",
       "Bash(true)",
-      "Bash(PORT=3001 npm run dev)"
+      "Bash(PORT=3001 npm run dev)",
+      "Bash(npx tsc:*)",
+      "Bash(npx next build:*)",
+      "Bash(mv:*)"
     ],
     "deny": []
   }

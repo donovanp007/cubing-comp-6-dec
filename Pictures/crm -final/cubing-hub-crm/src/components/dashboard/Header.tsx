@@ -3,7 +3,6 @@
 import { Search, Plus, Bell, Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -105,22 +104,23 @@ export default function Header({
 
       {/* Quick Navigation Tabs */}
       <div className="px-6 pb-3">
-        <Tabs value={getCurrentTab()} className="w-full">
-          <TabsList className="h-9 w-fit bg-gray-100">
-            {quickNavTabs.map((tab) => (
-              <TabsTrigger
-                key={tab.value}
-                value={tab.value}
-                className="text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm"
-                asChild
+        <div className="flex space-x-1 bg-gray-100 rounded-md p-1 w-fit">
+          {quickNavTabs.map((tab) => (
+            <Link key={tab.value} href={tab.href}>
+              <Button
+                variant={pathname === tab.href ? "default" : "ghost"}
+                size="sm"
+                className={`text-sm font-medium ${
+                  pathname === tab.href 
+                    ? "bg-white text-primary shadow-sm" 
+                    : "hover:bg-gray-200"
+                }`}
               >
-                <Link href={tab.href}>
-                  {tab.name}
-                </Link>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+                {tab.name}
+              </Button>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   )
