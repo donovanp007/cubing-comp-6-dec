@@ -240,7 +240,7 @@ export default function SchoolDetailsModal({
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getStatusBadgeVariant(student.status)}>
+                        <Badge variant={getStatusBadgeVariant(student.status) as any}>
                           {student.status}
                         </Badge>
                       </TableCell>
