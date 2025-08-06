@@ -1,0 +1,12 @@
+{
+  "name": "Attendance App",
+  "short_name": "AttendApp",
+  "description": "School attendance tracking application",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4CAF50",
+  "icons": [],
+  "orientation": "portrait",
+  "categories": ["education", "productivity"]
+}

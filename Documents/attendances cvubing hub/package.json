@@ -1,0 +1,26 @@
+{
+  "name": "attendance-app",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.48.1",
+    "@vueuse/core": "^10.4.1",
+    "pinia": "^2.1.6",
+    "vue": "^3.3.4",
+    "vue-multiselect": "^3.0.0-beta.2",
+    "vue-router": "^4.2.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.3.4",
+    "vite": "^4.4.9"
+  }
+}
