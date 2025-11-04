@@ -49,6 +49,7 @@ interface StudentFormData {
   parent_name: string
   parent_phone: string
   parent_email: string
+  parent_notes: string
   status: 'active' | 'in_progress' | 'completed' | 'concern' | 'inactive'
   class_type: string
   payment_status: 'paid' | 'outstanding' | 'partial' | 'overdue'
@@ -91,6 +92,7 @@ export default function EditStudentModal({
         parent_name: student.parent_name || '',
         parent_phone: student.parent_phone || '',
         parent_email: student.parent_email || '',
+        parent_notes: (student as any).parent_notes || '',
         status: student.status,
         class_type: student.class_type,
         payment_status: student.payment_status,
@@ -255,7 +257,7 @@ export default function EditStudentModal({
                 <FormField
                   control={form.control}
                   name="parent_phone"
-                  rules={{ 
+                  rules={{
                     pattern: {
                       value: /^$|^[\d\-+\s()]*$/,
                       message: 'Please enter a valid phone number'
@@ -265,8 +267,8 @@ export default function EditStudentModal({
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="082-123-4567 (optional)" 
+                        <Input
+                          placeholder="082-123-4567 (optional)"
                           {...field}
                           onChange={(e) => {
                             const formatted = formatPhoneNumber(e.target.value)
@@ -282,7 +284,7 @@ export default function EditStudentModal({
                 <FormField
                   control={form.control}
                   name="parent_email"
-                  rules={{ 
+                  rules={{
                     pattern: {
                       value: /^$|^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
                       message: 'Please enter a valid email address'
@@ -299,6 +301,24 @@ export default function EditStudentModal({
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="parent_notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Parent Notes</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Any notes about parent/guardian communication, preferences, or relevant information..."
+                        className="min-h-[60px]"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <div className="border-t pt-4">

@@ -223,8 +223,8 @@ export default function StudentProfileModal({
                   </AvatarFallback>
                 </Avatar>
                 <div className="absolute -bottom-2 -right-2">
-                  <Badge className={`${getStatusColor(student.enrollment_status || 'active')} px-3 py-1 text-sm shadow-lg border-2 border-white`}>
-                    {student.enrollment_status ? student.enrollment_status.charAt(0).toUpperCase() + student.enrollment_status.slice(1).replace('_', ' ') : 'Active'}
+                  <Badge className={`${getStatusColor(student.status || 'active')} px-3 py-1 text-sm shadow-lg border-2 border-white`}>
+                    {student.status ? student.status.charAt(0).toUpperCase() + student.status.slice(1).replace('_', ' ') : 'Active'}
                   </Badge>
                 </div>
               </div>
@@ -320,8 +320,8 @@ export default function StudentProfileModal({
                   <StatusIndicator label="Grade" value={student.grade} fieldName="grade" onEdit={handleEditField} />
                   <div className="flex items-center justify-between py-3 border-b border-gray-100">
                     <span className="text-sm font-medium text-gray-600">Enrollment Status</span>
-                    <Badge className={`${getStatusColor(student.enrollment_status || 'active')} px-3 py-1 text-sm`}>
-                      {(student.enrollment_status || 'active').replace('_', ' ').toUpperCase()}
+                    <Badge className={`${getStatusColor(student.status || 'active')} px-3 py-1 text-sm`}>
+                      {(student.status || 'active').replace('_', ' ').toUpperCase()}
                     </Badge>
                   </div>
                 </div>
