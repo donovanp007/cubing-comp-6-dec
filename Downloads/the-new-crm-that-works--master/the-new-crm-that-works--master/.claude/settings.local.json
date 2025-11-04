@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm:*)",
+      "Bash(find:*)",
+      "Bash(curl:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run build:*)",
+      "Bash(NEXT_PRIVATE_SKIP_SIZE_LIMIT_WARNING=1 npm run dev)",
+      "Bash(pkill:*)",
+      "Bash(PORT=3013 npm run dev)",
+      "Bash(git push:*)",
+      "Bash(git -C \"C:\\Users\\donov\\Downloads\\the-new-crm-that-works--master\\the-new-crm-that-works--master\" diff --stat)"
+    ],
+    "deny": []
+  }
+}
