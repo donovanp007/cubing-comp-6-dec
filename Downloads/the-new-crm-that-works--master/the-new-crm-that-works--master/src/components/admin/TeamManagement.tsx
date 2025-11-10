@@ -401,7 +401,7 @@ export function TeamManagement() {
 
                             <DropdownMenuSeparator />
 
-                            <DropdownMenuItem asChild>
+                            <div className="p-2">
                               <Select onValueChange={(role) => handleUpdateRole(member.id, role)}>
                                 <SelectTrigger className="w-40">
                                   <SelectValue placeholder="Change role..." />
@@ -413,7 +413,7 @@ export function TeamManagement() {
                                   <SelectItem value="viewer">Make Viewer</SelectItem>
                                 </SelectContent>
                               </Select>
-                            </DropdownMenuItem>
+                            </div>
 
                             <DropdownMenuSeparator />
 
@@ -464,7 +464,7 @@ export function TeamManagement() {
           <div className="grid gap-4 md:grid-cols-2">
             {Object.entries(ROLE_DESCRIPTIONS).map(([role, description]) => (
               <div key={role} className="p-4 border rounded-lg">
-                <Badge className={ROLE_COLORS[role]} className="mb-2">
+                <Badge className={`${ROLE_COLORS[role]} mb-2`}>
                   {role.replace('_', ' ').toUpperCase()}
                 </Badge>
                 <p className="text-sm text-gray-600">{description}</p>
@@ -515,7 +515,7 @@ function CreateTeamMemberForm({
     email: initialData?.email || '',
     name: initialData?.name || '',
     password: '',
-    role: initialData?.role || 'team_member',
+    role: (initialData?.role === 'ceo' ? 'admin' : initialData?.role) || 'team_member',
     department: initialData?.department || '',
   })
   const [loading, setLoading] = useState(false)
