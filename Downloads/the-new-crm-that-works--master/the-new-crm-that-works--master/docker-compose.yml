@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  crm-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cubing-hub-crm
+    ports:
+      - "3000:3000"
+    environment:
+      # Node environment
+      NODE_ENV: production
+
+      # Supabase Configuration - REQUIRED
+      # Replace these with your actual Supabase credentials
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-https://supabasekong-scc8g8kwwk44o8w00o8k0sg4.thecubinghub.com}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc2MjI4MjYyMCwiZXhwIjo0OTE3OTU2MjIwLCJyb2xlIjoiYW5vbiJ9.Iq_T4ZvFdocmLDyigjgTiFOG9vz4LGFZk2I5wsJtXkk}
+
+      # Application settings
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Optional: Add volumes for development
+    # volumes:
+    #   - ./src:/app/src
+    #   - ./public:/app/public
+
+    # Resource limits (optional - adjust based on your needs)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '1'
+    #       memory: 512M
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 256M
