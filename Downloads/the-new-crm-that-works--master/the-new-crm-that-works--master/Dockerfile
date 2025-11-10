@@ -10,11 +10,11 @@ WORKDIR /app
 # Install build dependencies
 RUN apk add --no-cache curl python3 make g++
 
-# Copy package files
+# Copy package files - try from root and nested path
 COPY package*.json ./
+RUN if [ ! -f package.json ]; then echo "ERROR: package.json not found in build context!"; ls -la /; exit 1; fi
 
 # Install all dependencies (including dev dependencies for build)
-# Use npm install to handle cases where package-lock.json may not be in build context
 RUN npm install
 
 # Copy entire project
@@ -43,7 +43,7 @@ RUN addgroup -g 1001 -S nodejs && \
 COPY --from=build --chown=nextjs:nodejs /app/package*.json ./
 
 # Install production dependencies only
-RUN npm install --only=production && npm cache clean --force
+RUN npm install --omit=dev && npm cache clean --force
 
 # Copy built application from build stage
 COPY --from=build --chown=nextjs:nodejs /app/.next ./.next
