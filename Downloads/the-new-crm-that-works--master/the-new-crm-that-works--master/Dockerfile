@@ -10,18 +10,45 @@ WORKDIR /app
 # Install build dependencies
 RUN apk add --no-cache curl python3 make g++
 
-# Copy package files - try from root and nested path
+# First, try to copy from root level
 COPY package*.json ./
-RUN if [ ! -f package.json ]; then echo "ERROR: package.json not found in build context!"; ls -la /; exit 1; fi
+
+# Check if package.json exists, if not find it
+RUN if [ ! -f package.json ]; then \
+    echo "package.json not found at root. Searching..."; \
+    if find / -name "package.json" -type f 2>/dev/null | grep -q "the-new-crm"; then \
+      PKGJSON_PATH=$(find / -path "*the-new-crm-that-works*" -name "package.json" -type f 2>/dev/null | head -1); \
+      if [ -n "$PKGJSON_PATH" ]; then \
+        echo "Found package.json at: $PKGJSON_PATH"; \
+        cp "$PKGJSON_PATH" ./package.json; \
+        if [ -f "${PKGJSON_PATH%/*}/package-lock.json" ]; then \
+          cp "${PKGJSON_PATH%/*}/package-lock.json" ./; \
+        fi; \
+      fi; \
+    fi; \
+  fi; \
+  if [ ! -f package.json ]; then \
+    echo "ERROR: Could not find package.json anywhere!"; \
+    echo "Build context contents:"; \
+    ls -laR / | head -100; \
+    exit 1; \
+  fi
 
 # Install all dependencies (including dev dependencies for build)
 RUN npm install
 
-# Copy entire project
+# Copy entire project - find the src directory
 COPY . .
+RUN if [ ! -d src ]; then \
+    SRC_PATH=$(find / -path "*the-new-crm-that-works*" -name "src" -type d 2>/dev/null | head -1); \
+    if [ -n "$SRC_PATH" ]; then \
+      echo "Copying src from: $SRC_PATH"; \
+      cp -r "$SRC_PATH" .; \
+      find / -path "*the-new-crm-that-works*" \( -name "*.tsx" -o -name "*.ts" -o -name "*.json" -o -name "next.config.js" -o -name "tailwind.config.js" -o -name "postcss.config.js" -o -name "tsconfig.json" -o -name ".next" \) 2>/dev/null | xargs -I {} cp --parents {} . 2>/dev/null || true; \
+    fi; \
+  fi
 
 # Build Next.js application
-# Note: Environment variables can be overridden at build time if needed
 RUN npm run build
 
 # ============================================================================
