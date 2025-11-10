@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import {
   CEOFinancialSummary,
   SchoolFinancialPerformance,
@@ -32,7 +32,6 @@ interface UseFinancialDataResult {
 }
 
 export function useFinancialData(): UseFinancialDataResult {
-  const supabase = createClient()
   const [dashboardData, setDashboardData] = useState<FinancialDashboardData | null>(null)
   const [terms, setTerms] = useState<Term[]>([])
   const [invoices, setInvoices] = useState<Invoice[]>([])

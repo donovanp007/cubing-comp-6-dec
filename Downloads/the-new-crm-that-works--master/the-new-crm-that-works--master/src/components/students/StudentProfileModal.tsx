@@ -90,6 +90,20 @@ export default function StudentProfileModal({
     setEditValue('')
   }
 
+  const handleToggleBooleanField = async (fieldName: string) => {
+    if (!student || !onUpdate) return
+
+    setIsSaving(true)
+    const currentValue = (student as any)[fieldName] ?? false
+    const updates = { [fieldName]: !currentValue }
+    const success = await onUpdate(student.id, updates)
+
+    if (success) {
+      // Success - state will update from parent component
+    }
+    setIsSaving(false)
+  }
+
   const handleAddNote = async () => {
     if (!student || !newNote.trim() || !onUpdate) return
 
@@ -132,37 +146,46 @@ export default function StudentProfileModal({
     value,
     isBoolean = false,
     fieldName,
-    onEdit
+    onEdit,
+    onToggle
   }: {
     label: string,
     value: boolean | string | null,
     isBoolean?: boolean,
     fieldName?: string,
-    onEdit?: (field: string, currentValue: string | null) => void
+    onEdit?: (field: string, currentValue: string | null) => void,
+    onToggle?: (field: string) => void
   }) => (
-    <div className="flex items-center justify-between py-1.5 px-1 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 rounded transition-colors group cursor-pointer">
+    <div className="flex items-center justify-between py-1.5 px-1 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 rounded transition-colors group">
       <span className="text-xs font-medium text-gray-700">{label}</span>
       <div className="flex items-center gap-2">
         {isBoolean ? (
-          value ? (
-            <div className="flex items-center space-x-1">
-              <div className="p-1 bg-green-100 rounded-full">
-                <CheckCircle className="h-4 w-4 text-green-700" />
+          <button
+            type="button"
+            onClick={() => onToggle?.(fieldName || '')}
+            className="flex items-center space-x-1 cursor-pointer hover:opacity-80 transition-opacity"
+            title={onToggle ? "Click to toggle" : undefined}
+          >
+            {value ? (
+              <div className="flex items-center space-x-1">
+                <div className="p-1 bg-green-100 rounded-full">
+                  <CheckCircle className="h-4 w-4 text-green-700" />
+                </div>
+                <span className="text-xs font-semibold text-green-700">Yes</span>
               </div>
-              <span className="text-xs font-semibold text-green-700">Yes</span>
-            </div>
-          ) : (
-            <div className="flex items-center space-x-1">
-              <div className="p-1 bg-red-100 rounded-full">
-                <XCircle className="h-3 w-3 text-red-700" />
+            ) : (
+              <div className="flex items-center space-x-1">
+                <div className="p-1 bg-red-100 rounded-full">
+                  <XCircle className="h-3 w-3 text-red-700" />
+                </div>
+                <span className="text-xs font-semibold text-red-700">No</span>
               </div>
-              <span className="text-xs font-semibold text-red-700">No</span>
-            </div>
-          )
+            )}
+          </button>
         ) : (
           <span className="text-xs font-semibold text-gray-900 bg-blue-50 px-2 py-1 rounded-full">{value || 'Not provided'}</span>
         )}
-        {fieldName && onEdit && (
+        {!isBoolean && fieldName && onEdit && (
           <button
             type="button"
             onClick={() => onEdit(fieldName, value as string | null)}
@@ -205,12 +228,26 @@ export default function StudentProfileModal({
         {/* Header Section with Background - Fullscreen Mode */}
         <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white p-8 shadow-xl border-b-4 border-blue-900">
           <div className="flex items-center justify-between">
+            {/* Back Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              className="text-white hover:bg-white/10 z-10"
+              type="button"
+              title="Go back to students list"
+            >
+              <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back
+            </Button>
             {/* Close Button */}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => onOpenChange(false)}
-              className="absolute top-4 right-4 text-white hover:bg-white/10 z-10"
+              className="text-white hover:bg-white/10 z-10"
               type="button"
             >
               <X className="h-5 w-5" />
@@ -317,12 +354,22 @@ export default function StudentProfileModal({
                 <div className="space-y-1">
                   <StatusIndicator label="First Name" value={student.first_name} fieldName="first_name" onEdit={handleEditField} />
                   <StatusIndicator label="Last Name" value={student.last_name} fieldName="last_name" onEdit={handleEditField} />
-                  <StatusIndicator label="Grade" value={student.grade} fieldName="grade" onEdit={handleEditField} />
-                  <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                  <StatusIndicator label="Grade" value={String(student.grade)} fieldName="grade" onEdit={handleEditField} />
+                  <div className="flex items-center justify-between py-3 px-1 border-b border-gray-100 hover:bg-gray-50 rounded transition-colors group cursor-pointer">
                     <span className="text-sm font-medium text-gray-600">Enrollment Status</span>
-                    <Badge className={`${getStatusColor(student.status || 'active')} px-3 py-1 text-sm`}>
-                      {(student.status || 'active').replace('_', ' ').toUpperCase()}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge className={`${getStatusColor(student.status || 'active')} px-3 py-1 text-sm`}>
+                        {(student.status || 'active').replace('_', ' ').toUpperCase()}
+                      </Badge>
+                      <button
+                        type="button"
+                        onClick={() => handleEditField('status', student.status || 'active')}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blue-100 rounded"
+                        title="Edit this field"
+                      >
+                        <Edit className="h-3 w-3 text-blue-600" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </InfoCard>
@@ -344,10 +391,34 @@ export default function StudentProfileModal({
 
               <InfoCard icon={FileText} title="Documentation Status">
                 <div className="space-y-1">
-                  <StatusIndicator label="Consent Form Received" value={student.consent_received} isBoolean />
-                  <StatusIndicator label="Certificate Awarded" value={student.certificate_given} isBoolean />
-                  <StatusIndicator label="Cube Distributed" value={student.cube_received} isBoolean />
-                  <StatusIndicator label="Invoice Sent" value={student.invoice_sent} isBoolean />
+                  <StatusIndicator
+                    label="Consent Form Received"
+                    value={student.consent_received}
+                    isBoolean
+                    fieldName="consent_received"
+                    onToggle={handleToggleBooleanField}
+                  />
+                  <StatusIndicator
+                    label="Certificate Awarded"
+                    value={student.certificate_given}
+                    isBoolean
+                    fieldName="certificate_given"
+                    onToggle={handleToggleBooleanField}
+                  />
+                  <StatusIndicator
+                    label="Cube Distributed"
+                    value={student.cube_received}
+                    isBoolean
+                    fieldName="cube_received"
+                    onToggle={handleToggleBooleanField}
+                  />
+                  <StatusIndicator
+                    label="Invoice Sent"
+                    value={student.invoice_sent}
+                    isBoolean
+                    fieldName="invoice_sent"
+                    onToggle={handleToggleBooleanField}
+                  />
                 </div>
               </InfoCard>
 
@@ -397,29 +468,55 @@ export default function StudentProfileModal({
 
               <InfoCard icon={FileText} title="Parent Notes">
                 <div className="min-h-32">
-                  {student.parent_notes ? (
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{student.parent_notes}</p>
-                  ) : (
-                    <div className="flex items-center justify-center h-32 text-center">
-                      <div>
-                        <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500 italic">No parent notes available</p>
-                        <p className="text-xs text-gray-400 mt-1">Add notes about parent communication, preferences, etc.</p>
+                  {isEditing === 'parent_notes' ? (
+                    <div className="space-y-3">
+                      <textarea
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="w-full p-3 border rounded-md resize-none h-32 text-sm"
+                        placeholder="Add notes about parent communication, preferences, etc..."
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleSaveEdit}>
+                          <Save className="h-3 w-3 mr-2" />
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={handleCancelEdit}>
+                          <X className="h-3 w-3 mr-2" />
+                          Cancel
+                        </Button>
                       </div>
                     </div>
+                  ) : (
+                    <>
+                      {student.parent_notes ? (
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{student.parent_notes}</p>
+                      ) : (
+                        <div className="flex items-center justify-center h-32 text-center">
+                          <div>
+                            <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500 italic">No parent notes available</p>
+                            <p className="text-xs text-gray-400 mt-1">Add notes about parent communication, preferences, etc.</p>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
-                <div className="mt-6 pt-4 border-t">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => onEdit?.(student)}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Parent Information
-                  </Button>
-                </div>
+                {!isEditing && (
+                  <div className="mt-6 pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => handleEditField('parent_notes', student.parent_notes)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      {student.parent_notes ? 'Edit Notes' : 'Add Notes'}
+                    </Button>
+                  </div>
+                )}
               </InfoCard>
             </div>
           </TabsContent>
@@ -473,45 +570,65 @@ export default function StudentProfileModal({
             <Card className="p-6">
               <h3 className="font-medium text-gray-900 mb-4">Progress Timeline</h3>
               <div className="space-y-4">
-                <div className="flex items-center space-x-4">
+                <button
+                  type="button"
+                  onClick={() => handleToggleBooleanField('consent_received')}
+                  disabled={isSaving}
+                  className="w-full flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group disabled:opacity-50"
+                >
                   <div className={`w-3 h-3 rounded-full ${student.consent_received ? 'bg-green-500' : 'bg-gray-300'}`} />
-                  <div className="flex-1">
+                  <div className="flex-1 text-left">
                     <p className="text-sm font-medium text-gray-900">Consent Form Received</p>
                     <p className="text-xs text-gray-500">
-                      {student.consent_received ? 'Completed' : 'Pending'}
+                      {student.consent_received ? 'Completed' : 'Pending'} (Click to toggle)
                     </p>
                   </div>
-                </div>
-                
-                <div className="flex items-center space-x-4">
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleToggleBooleanField('cube_received')}
+                  disabled={isSaving}
+                  className="w-full flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group disabled:opacity-50"
+                >
                   <div className={`w-3 h-3 rounded-full ${student.cube_received ? 'bg-green-500' : 'bg-gray-300'}`} />
-                  <div className="flex-1">
+                  <div className="flex-1 text-left">
                     <p className="text-sm font-medium text-gray-900">Cube Distributed</p>
                     <p className="text-xs text-gray-500">
-                      {student.cube_received ? 'Completed' : 'Pending'}
+                      {student.cube_received ? 'Completed' : 'Pending'} (Click to toggle)
                     </p>
                   </div>
-                </div>
-                
-                <div className="flex items-center space-x-4">
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleToggleBooleanField('certificate_given')}
+                  disabled={isSaving}
+                  className="w-full flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group disabled:opacity-50"
+                >
                   <div className={`w-3 h-3 rounded-full ${student.certificate_given ? 'bg-green-500' : 'bg-gray-300'}`} />
-                  <div className="flex-1">
+                  <div className="flex-1 text-left">
                     <p className="text-sm font-medium text-gray-900">Certificate Awarded</p>
                     <p className="text-xs text-gray-500">
-                      {student.certificate_given ? 'Completed' : 'Pending'}
+                      {student.certificate_given ? 'Completed' : 'Pending'} (Click to toggle)
                     </p>
                   </div>
-                </div>
-                
-                <div className="flex items-center space-x-4">
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleToggleBooleanField('invoice_sent')}
+                  disabled={isSaving}
+                  className="w-full flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group disabled:opacity-50"
+                >
                   <div className={`w-3 h-3 rounded-full ${student.invoice_sent ? 'bg-green-500' : 'bg-gray-300'}`} />
-                  <div className="flex-1">
+                  <div className="flex-1 text-left">
                     <p className="text-sm font-medium text-gray-900">Invoice Sent</p>
                     <p className="text-xs text-gray-500">
-                      {student.invoice_sent ? 'Completed' : 'Pending'}
+                      {student.invoice_sent ? 'Completed' : 'Pending'} (Click to toggle)
                     </p>
                   </div>
-                </div>
+                </button>
               </div>
             </Card>
           </TabsContent>
@@ -521,9 +638,16 @@ export default function StudentProfileModal({
               <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-medium text-gray-900">Payment Status</h3>
-                  <Badge className={getPaymentStatusColor(student.payment_status)}>
-                    {student.payment_status.toUpperCase()}
-                  </Badge>
+                  <button
+                    type="button"
+                    onClick={() => handleEditField('payment_status', student.payment_status)}
+                    className="group flex items-center space-x-1 hover:opacity-80 transition-opacity"
+                  >
+                    <Badge className={getPaymentStatusColor(student.payment_status)}>
+                      {student.payment_status.toUpperCase()}
+                    </Badge>
+                    <Edit className="h-4 w-4 text-blue-600 opacity-0 group-hover:opacity-100" />
+                  </button>
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between">

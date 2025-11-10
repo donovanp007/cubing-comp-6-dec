@@ -179,7 +179,7 @@ export default function StaffAssignmentInterface({ open, onOpenChange, onAssignm
       } catch (areasError) {
         console.warn('Areas table not accessible, creating from teams data')
         // Create mock areas from teams
-        const uniqueAreas = [...new Set(teamsData.map(t => t.area).filter(Boolean))]
+        const uniqueAreas = Array.from(new Set(teamsData.map(t => t.area).filter(Boolean)))
         if (uniqueAreas.length > 0) {
           areasData = uniqueAreas.map((areaName, index) => ({
             id: `area-${index}`,
@@ -206,14 +206,14 @@ export default function StaffAssignmentInterface({ open, onOpenChange, onAssignm
       setSchools(schoolsData)
       setAreas(areasData)
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching staff assignment data:', error?.message || error)
       // Set fallback data to prevent app crash
       setStaff([])
       setTeams([])
       setSchools([])
       setAreas([
-        { id: 'area-1', area_name: 'Central', region: 'Central Region', manager_id: null, manager_name: null, team_count: 0, school_count: 0 }
+        { id: 'area-1', area_name: 'Central', region: 'Central Region', manager_id: undefined, manager_name: undefined, team_count: 0, school_count: 0 }
       ])
     } finally {
       setLoading(false)
@@ -380,7 +380,7 @@ export default function StaffAssignmentInterface({ open, onOpenChange, onAssignm
     }
   }
 
-  const removeAssignment = async (staffId: string, assignmentType: 'team' | 'area') => {
+  const removeAssignment = async (staffId: string, assignmentType: 'team' | 'area' | 'school') => {
     try {
       if (assignmentType === 'team') {
         // Find and clear team assignments

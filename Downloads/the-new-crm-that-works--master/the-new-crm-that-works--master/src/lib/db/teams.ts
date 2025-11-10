@@ -932,12 +932,12 @@ export async function calculateTeamPerformanceMetrics(teamId: string): Promise<P
     const retainedStudents = activeStudents.length;
     const student_retention_rate = totalStudents > 0 ? (retainedStudents / totalStudents) * 100 : 0;
 
-    const skillRatings = allNotes.map(note => note.skill_rating);
+    const skillRatings = allNotes.map(note => note.skill_rating).filter((r): r is number => r !== null && r !== undefined);
     const average_skill_improvement = skillRatings.length > 0
       ? skillRatings.reduce((sum, rating) => sum + rating, 0) / skillRatings.length * 20 // Convert to percentage
       : 0;
 
-    const attendanceRatings = allNotes.map(note => note.attendance_rating);
+    const attendanceRatings = allNotes.map(note => note.attendance_rating).filter((r): r is number => r !== null && r !== undefined);
     const attendance_rate = attendanceRatings.length > 0
       ? attendanceRatings.reduce((sum, rating) => sum + rating, 0) / attendanceRatings.length * 20 // Convert to percentage
       : 0;

@@ -11,8 +11,8 @@ export default function Home() {
   useEffect(() => {
     if (!loading) {
       if (user) {
-        // Redirect authenticated users to dashboard
-        router.replace('/dashboard')
+        // Redirect authenticated users to students list
+        router.replace('/students')
       } else {
         // Redirect unauthenticated users to auth page
         router.replace('/auth')

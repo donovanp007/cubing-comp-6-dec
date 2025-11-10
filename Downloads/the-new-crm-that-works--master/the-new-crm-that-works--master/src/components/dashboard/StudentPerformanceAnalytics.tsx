@@ -118,10 +118,11 @@ export default function StudentPerformanceAnalytics() {
         const sessionsCompleted = Math.floor(Math.random() * 20) + 10;
         const totalSessions = sessionsCompleted + Math.floor(Math.random() * 5);
 
+        const teamData = Array.isArray(student.teams) ? student.teams[0] : student.teams
         return {
           ...student,
-          team_name: student.teams?.team_name || '',
-          area: student.teams?.area || '',
+          team_name: teamData?.team_name || '',
+          area: teamData?.area || '',
           skills_rating: skillsRating,
           attendance_rate: attendanceRate,
           assessment_scores: Array.from({length: 5}, () => Math.floor(Math.random() * 100) + 1),
@@ -145,7 +146,7 @@ export default function StudentPerformanceAnalytics() {
       }) || [];
 
       // Generate team metrics
-      const teams = [...new Set(performanceData.map(s => s.team_id))];
+      const teams = Array.from(new Set(performanceData.map(s => s.team_id)));
       const teamMetricsData: TeamPerformanceMetrics[] = teams.map(teamId => {
         const teamStudents = performanceData.filter(s => s.team_id === teamId);
         const teamName = teamStudents[0]?.team_name || '';
@@ -205,8 +206,8 @@ export default function StudentPerformanceAnalytics() {
     declining: filteredStudents.filter(s => s.performance_trend === 'declining').length,
   };
 
-  const teams = [...new Set(students.map(s => s.team_id))];
-  const areas = [...new Set(students.map(s => s.area))];
+  const teams = Array.from(new Set(students.map(s => s.team_id)));
+  const areas = Array.from(new Set(students.map(s => s.area)));
 
   if (loading) {
     return (

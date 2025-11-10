@@ -534,7 +534,7 @@ export default function SchoolManagementInterface() {
                           <div className="font-medium">{team.name}</div>
                           <div className="text-sm text-gray-600">{team.student_count || 0} students</div>
                         </div>
-                        <Badge variant={team.target_achievement_pct >= 100 ? 'default' : 'secondary'}>
+                        <Badge variant={(team.target_achievement_pct || 0) >= 100 ? 'default' : 'secondary'}>
                           {team.target_achievement_pct || 0}%
                         </Badge>
                       </div>

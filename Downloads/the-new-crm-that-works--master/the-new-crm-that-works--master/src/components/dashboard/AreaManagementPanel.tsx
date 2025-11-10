@@ -116,7 +116,7 @@ export default function AreaManagementPanel({ open, onOpenChange, onAreasUpdate 
   const [formData, setFormData] = useState({
     area_name: '',
     region: '',
-    status: 'active' as const,
+    status: 'active' as 'active' | 'inactive' | 'planning',
     manager_id: '',
     revenue_target: 50000
   })

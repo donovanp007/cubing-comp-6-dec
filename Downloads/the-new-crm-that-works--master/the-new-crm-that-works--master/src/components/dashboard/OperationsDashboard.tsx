@@ -27,8 +27,8 @@ export default function OperationsDashboard() {
           fetchRetention30d(),
           fetchParentNps()
         ]);
-        setRetention(r);
-        setNps(n);
+        setRetention(r || []);
+        setNps(n || []);
       } catch (e: any) {
         console.error('Failed to fetch operations data:', e);
         setError(e.message);

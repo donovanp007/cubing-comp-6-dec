@@ -66,6 +66,7 @@ export default function CEOCommandCenter() {
   const [areaManagementOpen, setAreaManagementOpen] = useState(false)
   const [staffAssignmentOpen, setStaffAssignmentOpen] = useState(false)
   const [schoolManagementOpen, setSchoolManagementOpen] = useState(false)
+  const [financialDashboardOpen, setFinancialDashboardOpen] = useState(false)
   const [selectedTeam, setSelectedTeam] = useState<TeamData | null>(null)
 
   const fetchDashboardData = async () => {
@@ -75,7 +76,20 @@ export default function CEOCommandCenter() {
         fetchCeoDashboard(),
         fetchTeamPerformance()
       ])
-      setCeo(ceoData)
+      // Provide defaults for CEO data if not available
+      const defaultCeoData: CEODashboard = {
+        total_revenue: 0,
+        revenue_growth: 0,
+        active_teams: 0,
+        team_growth: 0,
+        total_students: 0,
+        student_growth: 0,
+        avg_performance: 0,
+        performance_trend: 0,
+        revenue_target: 0,
+        active_schools: 0
+      }
+      setCeo(ceoData || defaultCeoData)
       setTeams(teamsData || [])
     } catch (e: any) {
       console.error('Dashboard fetch error:', e)
@@ -164,32 +178,24 @@ export default function CEOCommandCenter() {
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <KPIStat
-              title="Total Revenue"
+              label="Total Revenue"
               value={`$${(ceo.total_revenue || 0).toLocaleString()}`}
-              change={ceo.revenue_growth || 0}
-              icon={<DollarSign className="h-6 w-6" />}
-              color="text-green-600"
+              hint={ceo.revenue_growth ? `${ceo.revenue_growth > 0 ? '+' : ''}${ceo.revenue_growth}%` : undefined}
             />
             <KPIStat
-              title="Active Teams"
+              label="Active Teams"
               value={String(ceo.active_teams || 0)}
-              change={ceo.team_growth || 0}
-              icon={<Users className="h-6 w-6" />}
-              color="text-blue-600"
+              hint={ceo.team_growth ? `${ceo.team_growth > 0 ? '+' : ''}${ceo.team_growth}%` : undefined}
             />
             <KPIStat
-              title="Student Enrollment"
+              label="Student Enrollment"
               value={String(ceo.total_students || 0)}
-              change={ceo.student_growth || 0}
-              icon={<School className="h-6 w-6" />}
-              color="text-purple-600"
+              hint={ceo.student_growth ? `${ceo.student_growth > 0 ? '+' : ''}${ceo.student_growth}%` : undefined}
             />
             <KPIStat
-              title="Performance Score"
+              label="Performance Score"
               value={`${ceo.avg_performance || 0}%`}
-              change={ceo.performance_trend || 0}
-              icon={<Target className="h-6 w-6" />}
-              color="text-orange-600"
+              hint={ceo.performance_trend ? `${ceo.performance_trend > 0 ? '+' : ''}${ceo.performance_trend}%` : undefined}
             />
           </div>
 
@@ -383,7 +389,7 @@ export default function CEOCommandCenter() {
         </TabsContent>
 
         <TabsContent value="financials" className="space-y-6">
-          <CEOFinancialDashboard />
+          <CEOFinancialDashboard open={financialDashboardOpen} onOpenChange={setFinancialDashboardOpen} />
         </TabsContent>
 
         <TabsContent value="operations" className="space-y-6">
@@ -455,7 +461,6 @@ export default function CEOCommandCenter() {
         open={teamManagementOpen}
         onOpenChange={setTeamManagementOpen}
         onTeamsUpdate={handleTeamsUpdate}
-        selectedTeam={selectedTeam}
       />
 
       <AreaManagementPanel

@@ -123,7 +123,7 @@ export default function TestIntegrationPage() {
       };
     }
 
-    setTests([...testResults]);
+    setTests([...testResults] as { name: string; status: "loading" | "pass" | "fail"; message: string; }[]);
   };
 
   const overallStatus = tests.length > 0 ? (

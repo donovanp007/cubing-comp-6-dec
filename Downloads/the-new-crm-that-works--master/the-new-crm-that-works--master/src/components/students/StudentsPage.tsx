@@ -281,12 +281,16 @@ export default function StudentsPage() {
   }, [updateStudent])
 
   const handleImportStudents = async (importedStudents: StudentInsert[]) => {
+    console.log(`Starting import of ${importedStudents.length} students`)
     const result = await importStudents(importedStudents)
-    if (result.errors > 0) {
-      alert(`Import completed with ${result.errors} errors. ${result.success} students imported successfully.`)
-    } else {
-      alert(`Successfully imported ${result.success} students.`)
-    }
+
+    console.log(`Import result - Success: ${result.success}, Errors: ${result.errors}`)
+
+    const message = result.errors > 0
+      ? `Import completed!\n\n✅ Successfully imported: ${result.success} students\n❌ Failed: ${result.errors} students\n\nCheck the browser console for detailed error logs.`
+      : `✅ Successfully imported ${result.success} students!`
+
+    alert(message)
     setImportExportModalOpen(false)
   }
 

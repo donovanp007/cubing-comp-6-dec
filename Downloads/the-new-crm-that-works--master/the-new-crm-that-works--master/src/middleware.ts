@@ -3,11 +3,17 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(req: NextRequest) {
-  // AUTHENTICATION DISABLED FOR DEVELOPMENT
-  // Simply pass through all requests without checking authentication
-  return NextResponse.next()
-  
-  /* ORIGINAL AUTHENTICATION CODE - UNCOMMENT TO RE-ENABLE
+  // DEV MODE: Bypass authentication check
+  const DEV_MODE = true
+  if (DEV_MODE) {
+    return NextResponse.next({
+      request: {
+        headers: req.headers,
+      },
+    })
+  }
+
+  // Build response object for cookie handling
   let response = NextResponse.next({
     request: {
       headers: req.headers,
@@ -64,7 +70,7 @@ export async function middleware(req: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession()
 
   // Define public routes that don't require authentication
-  const publicRoutes = ['/login', '/reset-password', '/api/auth']
+  const publicRoutes = ['/login', '/reset-password', '/api/auth', '/api/health']
   const isPublicRoute = publicRoutes.some(route => req.nextUrl.pathname.startsWith(route))
 
   // If no session and trying to access protected route, redirect to login
@@ -75,13 +81,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  // If session exists and trying to access login, redirect to home
+  // If session exists and trying to access login, redirect to dashboard
   if (session && req.nextUrl.pathname === '/login') {
     return NextResponse.redirect(new URL('/', req.url))
   }
 
   return response
-  */
 }
 
 // Configure which routes to run middleware on

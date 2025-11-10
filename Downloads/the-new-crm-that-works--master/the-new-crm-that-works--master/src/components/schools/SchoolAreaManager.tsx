@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 
 interface Area {
   id: string
@@ -37,7 +37,6 @@ export default function SchoolAreaManager({
   onAreaChange,
   readOnly = false,
 }: SchoolAreaManagerProps) {
-  const supabase = createClient()
   const [areas, setAreas] = useState<Area[]>([])
   const [selectedArea, setSelectedArea] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)

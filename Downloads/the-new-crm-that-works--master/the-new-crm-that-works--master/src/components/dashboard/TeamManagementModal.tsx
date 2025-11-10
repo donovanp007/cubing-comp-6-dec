@@ -33,7 +33,7 @@ import {
   MapPin,
   Target,
   DollarSign,
-  School,
+  School as SchoolIcon,
   UserCheck,
   AlertTriangle,
   GraduationCap,
@@ -616,7 +616,7 @@ export default function TeamManagementModal({
                       <Label>Role</Label>
                       <Select
                         value={newCoachForm.role}
-                        onValueChange={(value: 'head_coach' | 'assistant_coach') => setNewCoachForm({...newCoachForm, role: value})}
+                        onValueChange={(value) => setNewCoachForm({...newCoachForm, role: value as 'head_coach' | 'assistant_coach'})}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -752,7 +752,7 @@ export default function TeamManagementModal({
                       <Label>Skill Level</Label>
                       <Select
                         value={newStudentForm.skill_level}
-                        onValueChange={(value: 'beginner' | 'intermediate' | 'advanced') => setNewStudentForm({...newStudentForm, skill_level: value})}
+                        onValueChange={(value) => setNewStudentForm({...newStudentForm, skill_level: value as 'beginner' | 'intermediate' | 'advanced'})}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -942,8 +942,8 @@ export default function TeamManagementModal({
                         <Label>Metric Type</Label>
                         <Select
                           value={newGoalForm.metric_type}
-                          onValueChange={(value: 'revenue' | 'students' | 'retention' | 'performance' | 'custom') =>
-                            setNewGoalForm({...newGoalForm, metric_type: value})}
+                          onValueChange={(value) =>
+                            setNewGoalForm({...newGoalForm, metric_type: value as 'revenue' | 'students' | 'retention' | 'performance' | 'custom'})}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -1208,7 +1208,7 @@ export default function TeamManagementModal({
               {/* School Revenue Analysis */}
               <Card className="p-6">
                 <h4 className="text-md font-semibold mb-4 flex items-center gap-2">
-                  <School className="h-4 w-4" />
+                  <SchoolIcon className="h-4 w-4" />
                   Revenue by School
                 </h4>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

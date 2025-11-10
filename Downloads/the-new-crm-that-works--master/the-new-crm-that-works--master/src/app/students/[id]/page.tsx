@@ -584,9 +584,8 @@ export default function StudentProfilePage() {
                                 setEditingSection(null)
                               }
                             }}
-                            disabled={schoolsLoading}
                           >
-                            <SelectTrigger className="w-48">
+                            <SelectTrigger className={`w-48 ${schoolsLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
                               <SelectValue placeholder={schoolsLoading ? 'Loading...' : 'Select school'} />
                             </SelectTrigger>
                             <SelectContent>
@@ -651,22 +650,22 @@ export default function StudentProfilePage() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
-                    <EditableField 
-                      label="Parent Name" 
-                      value={student.parent_name} 
-                      field="parent_name" 
+                    <EditableField
+                      label="Parent Name"
+                      value={student.parent_name || ''}
+                      field="parent_name"
                     />
-                    <EditableField 
-                      label="Phone Number" 
-                      value={student.parent_phone} 
-                      field="parent_phone" 
+                    <EditableField
+                      label="Phone Number"
+                      value={student.parent_phone || ''}
+                      field="parent_phone"
                     />
                   </div>
                   <div className="space-y-3">
-                    <EditableField 
-                      label="Email Address" 
-                      value={student.parent_email} 
-                      field="parent_email" 
+                    <EditableField
+                      label="Email Address"
+                      value={student.parent_email || ''}
+                      field="parent_email"
                     />
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-500">Relationship</span>

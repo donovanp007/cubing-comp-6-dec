@@ -65,7 +65,7 @@ interface StudentsTableImprovedProps {
   onViewStudent: (student: StudentWithSchool) => void
   onEditStudent: (student: StudentWithSchool) => void
   onDeleteStudent: (student: StudentWithSchool) => void
-  onUpdateStudent?: (studentId: string, updates: Partial<StudentWithSchool>) => void
+  onUpdateStudent?: (studentId: string, updates: Partial<StudentWithSchool>) => void | Promise<void>
   invoiceStatuses?: Record<string, boolean>
   onImportExport?: () => void
   onQuickExport?: () => void
@@ -121,8 +121,8 @@ const StudentsTableImproved = memo(function StudentsTableImproved({
     return () => document.removeEventListener('click', handleClickOutside)
   }, [])
 
-  const handleRowSelect = useCallback((studentId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleRowSelect = useCallback((studentId: string, e?: React.MouseEvent | React.ChangeEvent) => {
+    if (e && 'stopPropagation' in e) e.stopPropagation()
     const newSelection = new Set(selectedRows)
     if (selectedRows.has(studentId)) {
       newSelection.delete(studentId)
@@ -673,7 +673,7 @@ const StudentsTableImproved = memo(function StudentsTableImproved({
         onOpenChange={setShowProfileModal}
         onEdit={onEditStudent}
         onDelete={onDeleteStudent}
-        onUpdate={onUpdateStudent}
+        onUpdate={onUpdateStudent as any}
       />
     </div>
   )

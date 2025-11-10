@@ -108,13 +108,13 @@ export function useProjectTasks(projectId: string) {
         // Fallback to localStorage
         const localList = { ...newList, id: crypto.randomUUID() }
         const updatedLists = [...taskLists, localList]
-        setTaskLists(updatedLists)
+        setTaskLists(updatedLists as TaskList[])
         localStorage.setItem(`task_lists_${projectId}`, JSON.stringify(updatedLists))
         return localList
       }
 
       const updatedLists = [...taskLists, data]
-      setTaskLists(updatedLists)
+      setTaskLists(updatedLists as TaskList[])
       localStorage.setItem(`task_lists_${projectId}`, JSON.stringify(updatedLists))
       return data
 
@@ -130,7 +130,7 @@ export function useProjectTasks(projectId: string) {
         updated_at: new Date().toISOString()
       }
       const updatedLists = [...taskLists, localList]
-      setTaskLists(updatedLists)
+      setTaskLists(updatedLists as TaskList[])
       localStorage.setItem(`task_lists_${projectId}`, JSON.stringify(updatedLists))
       return localList
     }
@@ -161,13 +161,13 @@ export function useProjectTasks(projectId: string) {
         // Fallback to localStorage
         const localTask = { ...newTask, id: crypto.randomUUID() }
         const updatedTasks = [...tasks, localTask]
-        setTasks(updatedTasks)
+        setTasks(updatedTasks as WorkTask[])
         localStorage.setItem(`work_tasks_${projectId}`, JSON.stringify(updatedTasks))
         return localTask
       }
 
       const updatedTasks = [...tasks, data]
-      setTasks(updatedTasks)
+      setTasks(updatedTasks as WorkTask[])
       localStorage.setItem(`work_tasks_${projectId}`, JSON.stringify(updatedTasks))
       return data
 
@@ -185,7 +185,7 @@ export function useProjectTasks(projectId: string) {
         updated_at: new Date().toISOString()
       }
       const updatedTasks = [...tasks, localTask]
-      setTasks(updatedTasks)
+      setTasks(updatedTasks as WorkTask[])
       localStorage.setItem(`work_tasks_${projectId}`, JSON.stringify(updatedTasks))
       return localTask
     }
@@ -213,7 +213,7 @@ export function useProjectTasks(projectId: string) {
         const updatedTasks = tasks.map(task => 
           task.id === taskId ? { ...task, ...updatedData } : task
         )
-        setTasks(updatedTasks)
+        setTasks(updatedTasks as WorkTask[])
         localStorage.setItem(`work_tasks_${projectId}`, JSON.stringify(updatedTasks))
         return
       }
@@ -221,7 +221,7 @@ export function useProjectTasks(projectId: string) {
       const updatedTasks = tasks.map(task => 
         task.id === taskId ? data : task
       )
-      setTasks(updatedTasks)
+      setTasks(updatedTasks as WorkTask[])
       localStorage.setItem(`work_tasks_${projectId}`, JSON.stringify(updatedTasks))
 
     } catch (err: any) {
@@ -230,7 +230,7 @@ export function useProjectTasks(projectId: string) {
       const updatedTasks = tasks.map(task => 
         task.id === taskId ? { ...task, ...updates, updated_at: new Date().toISOString() } : task
       )
-      setTasks(updatedTasks)
+      setTasks(updatedTasks as WorkTask[])
       localStorage.setItem(`work_tasks_${projectId}`, JSON.stringify(updatedTasks))
     }
   }
@@ -248,13 +248,13 @@ export function useProjectTasks(projectId: string) {
       }
 
       const updatedTasks = tasks.filter(task => task.id !== taskId)
-      setTasks(updatedTasks)
+      setTasks(updatedTasks as WorkTask[])
       localStorage.setItem(`work_tasks_${projectId}`, JSON.stringify(updatedTasks))
 
     } catch (err: any) {
       console.error('Error deleting task:', err)
       const updatedTasks = tasks.filter(task => task.id !== taskId)
-      setTasks(updatedTasks)
+      setTasks(updatedTasks as WorkTask[])
       localStorage.setItem(`work_tasks_${projectId}`, JSON.stringify(updatedTasks))
     }
   }
@@ -278,13 +278,13 @@ export function useProjectTasks(projectId: string) {
       }
 
       const updatedLists = taskLists.filter(list => list.id !== listId)
-      setTaskLists(updatedLists)
+      setTaskLists(updatedLists as TaskList[])
       localStorage.setItem(`task_lists_${projectId}`, JSON.stringify(updatedLists))
 
     } catch (err: any) {
       console.error('Error deleting task list:', err)
       const updatedLists = taskLists.filter(list => list.id !== listId)
-      setTaskLists(updatedLists)
+      setTaskLists(updatedLists as TaskList[])
       localStorage.setItem(`task_lists_${projectId}`, JSON.stringify(updatedLists))
     }
   }

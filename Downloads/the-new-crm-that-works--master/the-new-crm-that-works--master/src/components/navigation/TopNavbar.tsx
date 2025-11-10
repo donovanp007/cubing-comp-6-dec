@@ -10,44 +10,36 @@ import { useAuth } from '@/contexts/AuthContext'
 import { UserProfileButton } from '@/components/auth/UserProfile'
 import { ShowForCEOAdmin, ShowForAdmin, HideFinancials } from '@/components/auth/ConditionalRender'
 import {
-  LayoutDashboard,
   Users,
   School,
-  Bell,
   ClipboardList,
   FolderKanban,
-  User as UserIcon,
   Settings,
-  ChevronRight,
-  Home,
   LogIn,
-  BarChart3,
   TrendingUp,
   Menu,
-  X
+  X,
+  Users2
 } from 'lucide-react'
 
 const getNavigationItems = (userRole: string) => {
   const baseItems = [
-    { name: 'Home', href: '/', icon: Home },
     { name: 'Students', href: '/students', icon: Users, badge: '156' },
     { name: 'Schools', href: '/schools', icon: School },
+    { name: 'Teams', href: '/team', icon: Users2 },
     { name: 'Projects', href: '/projects', icon: FolderKanban, badge: '4' },
     { name: 'Tasks', href: '/tasks', icon: ClipboardList, badge: '5' },
-    { name: 'Reminders', href: '/reminders', icon: Bell, badge: '3' },
-    { name: 'Team', href: '/team', icon: UserIcon },
-    { name: 'My Tasks', href: '/my-tasks', icon: UserIcon, badge: '7' }
+    { name: 'My Tasks', href: '/my-tasks', icon: Users2, badge: '7' }
   ]
 
   // Add CEO/Admin specific items
   if (userRole === 'ceo' || userRole === 'admin') {
-    baseItems.splice(1, 0, { name: 'Analytics', href: '/analytics', icon: BarChart3 })
-    baseItems.splice(2, 0, { name: 'CEO Dashboard', href: '/ceo', icon: TrendingUp })
+    baseItems.push({ name: 'Executive Control', href: '/executive-control', icon: TrendingUp })
   }
 
   // Add Admin-only items
   if (userRole === 'admin') {
-    baseItems.splice(3, 0, { name: 'Admin', href: '/admin', icon: Settings })
+    baseItems.push({ name: 'Admin', href: '/admin', icon: Settings })
   }
 
   return baseItems
@@ -68,111 +60,119 @@ export default function TopNavbar() {
 
   return (
     <nav className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
-      <div className="px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          {/* Logo and Brand */}
-          <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="h-8 w-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">TCH</span>
-              </div>
-              <div className="hidden sm:block">
-                <h1 className="text-lg font-bold text-gray-900">The Cubing Hub</h1>
-              </div>
-            </Link>
-          </div>
+      <div className="px-6 lg:px-8">
+        {/* Main Navbar Row */}
+        <div className="flex justify-between items-center h-16">
+          {/* Logo - Left Side */}
+          <Link href="/" className="flex items-center space-x-3 flex-shrink-0">
+            <div className="h-8 w-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">TCH</span>
+            </div>
+            <h1 className="text-lg font-bold text-gray-900">The Cubing Hub</h1>
+          </Link>
 
-          {/* Navigation Links */}
-          <div className="hidden md:flex items-center space-x-1">
-            {navigationItems.map((item) => {
+          {/* Navigation Links - Center (Desktop Only) */}
+          <div className="hidden lg:flex items-center gap-8 flex-1 justify-center px-8">
+            {navigationItems.slice(0, 4).map((item) => {
               const isActive = pathname === item.href
               const Icon = item.icon
-              
+
               return (
                 <Link
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    'relative flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+                    'flex items-center gap-2 px-1 py-2 text-sm font-medium transition-colors whitespace-nowrap',
                     isActive
-                      ? 'bg-blue-100 text-blue-700 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      ? 'text-blue-700 border-b-2 border-blue-700'
+                      : 'text-gray-600 hover:text-gray-900'
                   )}
                 >
-                  <Icon className="h-4 w-4 mr-2" />
+                  <Icon className="h-4 w-4" />
                   {item.name}
-                  {item.badge && (
-                    <Badge 
-                      variant={isActive ? "default" : "secondary"}
-                      className={cn(
-                        "ml-2 text-xs px-1.5 py-0.5",
-                        isActive ? "bg-blue-700 text-white" : ""
-                      )}
-                    >
-                      {item.badge}
-                    </Badge>
-                  )}
                 </Link>
               )
             })}
           </div>
 
-          {/* Mobile Menu Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="md:hidden text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Menu className="h-5 w-5" />
-            )}
-          </Button>
+          {/* Right Side Actions */}
+          <div className="flex items-center gap-6">
+            {/* Additional Nav Items (Desktop) */}
+            <div className="hidden xl:flex items-center gap-6">
+              {navigationItems.slice(4).map((item) => {
+                const isActive = pathname === item.href
+                const Icon = item.icon
 
-          {/* Settings & User Profile */}
-          <div className="flex items-center space-x-2">
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={cn(
+                      'flex items-center gap-2 px-1 py-2 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'text-blue-700'
+                        : 'text-gray-600 hover:text-gray-900'
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span className="hidden 2xl:inline">{item.name}</span>
+                  </Link>
+                )
+              })}
+            </div>
+
+            {/* User Section */}
             {user ? (
-              <>
-                {/* Quick Settings */}
-                <Link href="/settings">
+              <div className="flex items-center gap-4">
+                {/* Settings Icon */}
+                <Link href="/settings" title="Settings">
                   <Button
                     variant="ghost"
                     size="sm"
                     className={cn(
-                      'text-gray-600 hover:text-gray-900',
-                      pathname === '/settings' && 'bg-gray-100 text-gray-900'
+                      'h-9 w-9 p-0 text-gray-600 hover:text-gray-900',
+                      pathname === '/settings' && 'bg-gray-100'
                     )}
                   >
                     <Settings className="h-4 w-4" />
-                    <span className="hidden sm:ml-2 sm:inline">Settings</span>
                   </Button>
                 </Link>
 
                 {/* User Profile */}
-                <div className="flex items-center space-x-2 pl-2 border-l border-gray-200">
+                <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
+                  <div className="hidden sm:block text-right text-sm">
+                    <p className="font-medium text-gray-900">{profile?.full_name || 'User'}</p>
+                    <p className="text-xs text-gray-500 capitalize">{profile?.role || ''}</p>
+                  </div>
                   <UserProfileButton />
-                  {profile && (
-                    <div className="hidden sm:block text-sm">
-                      <p className="font-medium text-gray-900">{profile.full_name}</p>
-                      <p className="text-xs text-gray-500 capitalize">{profile.role}</p>
-                    </div>
-                  )}
                 </div>
-              </>
+              </div>
             ) : (
               !loading && (
                 <Button
                   onClick={() => router.push('/auth')}
                   size="sm"
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 gap-2"
                 >
-                  <LogIn className="h-4 w-4 mr-2" />
+                  <LogIn className="h-4 w-4" />
                   Sign In
                 </Button>
               )
             )}
+
+            {/* Mobile Menu Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="lg:hidden h-9 w-9 p-0"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
+            </Button>
           </div>
         </div>
 
@@ -246,20 +246,6 @@ export default function TopNavbar() {
         </div>
       )}
 
-      {/* Breadcrumb for current page */}
-      {pathname !== '/' && (
-        <div className="bg-gray-50 border-t border-gray-200 px-4 sm:px-6 lg:px-8 py-2">
-          <div className="flex items-center space-x-2 text-sm text-gray-500">
-            <Link href="/" className="hover:text-gray-700">
-              Home
-            </Link>
-            <ChevronRight className="h-3 w-3" />
-            <span className="text-gray-900 font-medium">
-              {navigationItems.find(item => item.href === pathname)?.name || 'Current Page'}
-            </span>
-          </div>
-        </div>
-      )}
     </nav>
   )
 }

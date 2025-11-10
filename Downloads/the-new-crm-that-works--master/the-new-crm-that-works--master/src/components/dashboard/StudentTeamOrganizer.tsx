@@ -177,7 +177,7 @@ export default function StudentTeamOrganizer() {
     return matchesSearch && matchesArea && matchesStatus;
   });
 
-  const areas = [...new Set(teams.map(t => t.area))].filter(Boolean);
+  const areas = Array.from(new Set(teams.map(t => t.area))).filter(Boolean);
 
   if (loading) {
     return (

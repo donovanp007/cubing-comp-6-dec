@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { User, Session } from '@supabase/supabase-js'
 
-// DEV MODE: Set to true to bypass authentication
+// DEV MODE: Set to false in production
+// Remove this after testing - use proper authentication
 const DEV_MODE_BYPASS_AUTH = true
 
 interface Profile {

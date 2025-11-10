@@ -34,12 +34,6 @@ export default function LoginPage() {
       }
 
       if (data.user) {
-        // Update last login
-        await supabase
-          .from('profiles')
-          .update({ last_login: new Date().toISOString() })
-          .eq('id', data.user.id)
-
         // Redirect to dashboard
         router.push('/')
       }

@@ -160,7 +160,7 @@ export default function SchoolDetailsModal({ open, onOpenChange, schoolId, onSch
         .eq('school_id', schoolId)
 
       // Fetch class schedules (this table might not exist yet, so we handle gracefully)
-      let schedulesResponse = { data: [], error: null }
+      let schedulesResponse: any = { data: [], error: null }
       try {
         schedulesResponse = await supabase
           .from('class_schedules')
