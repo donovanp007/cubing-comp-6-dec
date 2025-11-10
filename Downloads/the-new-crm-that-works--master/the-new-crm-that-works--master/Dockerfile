@@ -10,14 +10,12 @@ WORKDIR /app
 # Install build dependencies
 RUN apk add --no-cache curl python3 make g++
 
-# Copy package files - handles nested Coolify directory structure
-# Docker COPY follows this logic:
-# If package.json exists at root of build context, copy it
-# If not found, Docker will fail with clear error
+# Copy package files
 COPY package*.json ./
 
 # Install all dependencies (including dev dependencies for build)
-RUN npm ci || { echo "ERROR: npm ci failed. Check that package-lock.json exists in repository root."; exit 1; }
+# Use npm install to handle cases where package-lock.json may not be in build context
+RUN npm install
 
 # Copy entire project
 COPY . .
@@ -45,7 +43,7 @@ RUN addgroup -g 1001 -S nodejs && \
 COPY --from=build --chown=nextjs:nodejs /app/package*.json ./
 
 # Install production dependencies only
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --only=production && npm cache clean --force
 
 # Copy built application from build stage
 COPY --from=build --chown=nextjs:nodejs /app/.next ./.next
