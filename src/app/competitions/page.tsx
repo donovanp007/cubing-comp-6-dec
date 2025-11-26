@@ -25,8 +25,12 @@ export default function PublicCompetitionsPage() {
       .eq("is_public", true)
       .order("competition_date", { ascending: true });
 
-    if (!error) {
-      setCompetitions(data || []);
+    if (!error && data) {
+      // Filter out weekly competitions - only show main competitions
+      const mainCompetitions = data.filter((comp) =>
+        !comp.name.toLowerCase().includes("weekly")
+      );
+      setCompetitions(mainCompetitions);
     }
     setLoading(false);
   };
@@ -180,7 +184,7 @@ function CompetitionCard({
           <Users className="h-4 w-4" />
           <span>{participants} participants</span>
         </div>
-        <Link href={`/results`} className="block">
+        <Link href={`/competitions/${id}/live`} className="block">
           <Button className="w-full mt-4 bg-white/20 hover:bg-white/30 text-white">
             View Details
             <ArrowRight className="h-4 w-4 ml-2" />

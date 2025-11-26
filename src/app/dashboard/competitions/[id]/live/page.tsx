@@ -80,10 +80,23 @@ export default function CompetitionLivePage({
   const [cutoffTimeSeconds, setCutoffTimeSeconds] = useState(30);
   const [isCompleting, setIsCompleting] = useState(false);
   const [advancementResults, setAdvancementResults] = useState<any>(null);
+  const [penalty, setPenalty] = useState(0); // 0 = none, 2 = +2 seconds
 
+  // Load persisted live state on mount AND when competition changes
   useEffect(() => {
+    const savedLiveState = localStorage.getItem(`live_state_${competitionId}`);
+    if (savedLiveState === "true") {
+      setIsLive(true);
+    } else {
+      setIsLive(false);
+    }
     fetchData();
-  }, []);
+  }, [competitionId]);
+
+  // Persist live state to localStorage (survives page refreshes and navigation)
+  useEffect(() => {
+    localStorage.setItem(`live_state_${competitionId}`, isLive.toString());
+  }, [isLive, competitionId]);
 
   useEffect(() => {
     if (selectedEvent) {
@@ -98,6 +111,12 @@ export default function CompetitionLivePage({
       setSelectedStudent(groupStudents[0].id);
     }
   }, [selectedGroup, groups]);
+
+  useEffect(() => {
+    if (selectedRound) {
+      fetchRoundStudents();
+    }
+  }, [selectedRound]);
 
   useEffect(() => {
     if (selectedRound && selectedGroup) {
@@ -244,6 +263,113 @@ export default function CompetitionLivePage({
     }
   };
 
+  const fetchRoundStudents = async () => {
+    try {
+      // Fetch all students registered for this competition
+      const { data: registrationsData } = await supabase
+        .from("registrations")
+        .select("*, students(id, first_name, last_name, grade)")
+        .eq("competition_id", competitionId);
+
+      if (!registrationsData) return;
+
+      // Get group assignments to organize students by groups
+      const { data: assignmentsData } = await supabase
+        .from("group_assignments")
+        .select("student_id, competition_groups(id, group_name, color_hex, color_name, sort_order)")
+        .eq("competition_id", competitionId);
+
+      // Organize students by groups
+      const groupMap = new Map<string, Group>();
+      const assignmentMap = new Map<string, string>(); // student_id -> group_id
+
+      assignmentsData?.forEach((a: any) => {
+        const groupId = a.competition_groups?.id;
+        if (groupId) {
+          assignmentMap.set(a.student_id, groupId);
+
+          if (!groupMap.has(groupId)) {
+            groupMap.set(groupId, {
+              id: groupId,
+              group_name: a.competition_groups.group_name,
+              color_hex: a.competition_groups.color_hex,
+              color_name: a.competition_groups.color_name,
+              students: [],
+            });
+          }
+        }
+      });
+
+      // Add students to groups
+      const assignedStudentIds = new Set<string>();
+
+      registrationsData.forEach((reg: any) => {
+        const student = {
+          id: reg.students.id,
+          name: `${reg.students.first_name} ${reg.students.last_name}`.trim(),
+          grade: reg.students.grade || "Unknown",
+        };
+
+        const groupId = assignmentMap.get(reg.students.id);
+        if (groupId && groupMap.has(groupId)) {
+          groupMap.get(groupId)!.students.push(student);
+          assignedStudentIds.add(reg.students.id);
+        }
+      });
+
+      // Get or create "All Students" group for unassigned students
+      let processedGroups = Array.from(groupMap.values());
+
+      const unassignedStudents = registrationsData
+        .filter((r: any) => !assignedStudentIds.has(r.students.id))
+        .map((r: any) => ({
+          id: r.students.id,
+          name: `${r.students.first_name} ${r.students.last_name}`.trim(),
+          grade: r.students.grade || "Unknown",
+        }));
+
+      // If there are unassigned students, add them to "All Students" group
+      if (unassignedStudents.length > 0) {
+        const allStudentsGroup = processedGroups.find(g => g.id === "default-group" || g.group_name === "All Students");
+        if (allStudentsGroup) {
+          allStudentsGroup.students.push(...unassignedStudents);
+        } else {
+          processedGroups.push({
+            id: "default-group",
+            group_name: "All Students",
+            color_hex: "#6366f1",
+            color_name: "indigo",
+            students: unassignedStudents,
+          });
+        }
+      }
+
+      // If no groups at all, create default group with all students
+      if (processedGroups.length === 0) {
+        processedGroups = [
+          {
+            id: "default-group",
+            group_name: "All Students",
+            color_hex: "#6366f1",
+            color_name: "indigo",
+            students: registrationsData.map((r: any) => ({
+              id: r.students.id,
+              name: `${r.students.first_name} ${r.students.last_name}`.trim(),
+              grade: r.students.grade || "Unknown",
+            })),
+          },
+        ];
+      }
+
+      setGroups(processedGroups);
+      if (processedGroups.length > 0) {
+        setSelectedGroup(processedGroups[0].id);
+      }
+    } catch (error) {
+      console.error("Error fetching round students:", error);
+    }
+  };
+
   const fetchStudentProgress = async () => {
     try {
       const selectedGroupData = groups.find((g) => g.id === selectedGroup);
@@ -275,15 +401,40 @@ export default function CompetitionLivePage({
     const num = parseInt(input.replace(/\D/g, ""), 10);
     if (isNaN(num)) return null;
 
-    if (num < 100) return num * 10; // e.g., "5" -> 5.0s -> 5000ms
-    if (num < 10000) return num * 10; // e.g., "234" -> 23.4s -> 23400ms
-    return num; // Already milliseconds
+    // Standard cubing centiseconds format:
+    // "1234" = 12.34 seconds = 12340 milliseconds
+    // "2534" = 25.34 seconds = 25340 milliseconds
+    // "120323" = 1203.23 centiseconds = 1203.23 seconds (hmm, that's too much)
+
+    // Better interpretation: last 2 digits are centiseconds
+    // "1234" = 12 seconds 34 centiseconds = 12.34s
+    // "234" = 2 seconds 34 centiseconds = 2.34s
+    // "34" = 0 seconds 34 centiseconds = 0.34s
+    // "120323" = 1203 seconds 23 centiseconds = 1203.23s (20 minutes!)
+
+    const centiseconds = num % 100;
+    const seconds = Math.floor(num / 100);
+    const totalMs = (seconds * 1000) + (centiseconds * 10);
+
+    return totalMs;
   };
 
   const formatTime = (ms: number): string => {
     if (!ms) return "-.--";
     const seconds = ms / 1000;
     return seconds.toFixed(2);
+  };
+
+  const formatTimeDisplay = (ms: number): string => {
+    if (!ms) return "-.--";
+    const totalSeconds = ms / 1000;
+    const minutes = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+
+    if (minutes > 0) {
+      return `${minutes}:${secs.toFixed(2).padStart(5, '0')}`;
+    }
+    return secs.toFixed(2);
   };
 
   const handleCompleteRound = async () => {
@@ -437,16 +588,31 @@ export default function CompetitionLivePage({
         recorded_at: new Date().toISOString(),
       });
 
+      // Add penalty if applicable
+      const finalTimeMs = isDNF ? null : (penalty === 2 ? timeMs! + 2000 : timeMs);
+
       toast({
         title: "Success",
         description: isDNF
           ? `Recorded DNF for attempt ${currentAttempt}`
-          : `Recorded ${formatTime(timeMs!)} for attempt ${currentAttempt}`,
+          : `Recorded ${formatTime(finalTimeMs!)}${penalty === 2 ? ' (+2s)' : ''} for attempt ${currentAttempt}`,
       });
 
-      // Clear input and DNF
+      // Clear input, DNF, and penalty
       setInputValue("");
       setIsDNF(false);
+      setPenalty(0);
+
+      // Auto-advance to next attempt or show completion
+      if (currentAttempt < 5) {
+        setCurrentAttempt(currentAttempt + 1);
+      } else {
+        // All 5 attempts done
+        toast({
+          title: "Attempts Complete",
+          description: `All 5 attempts recorded for ${selectedStudent}`,
+        });
+      }
 
       // Auto-calculate and save rankings
       await updateStudentRanking(studentId, selectedRound, selectedEvent);
@@ -551,11 +717,16 @@ export default function CompetitionLivePage({
                 onChange={(e) => setSelectedEvent(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 focus:outline-none"
               >
-                {events.map((event) => (
-                  <option key={event.id} value={event.id}>
-                    {event.event_types.name}
-                  </option>
-                ))}
+                <option value="">Select Event...</option>
+                {events && events.length > 0 ? (
+                  events.map((event) => (
+                    <option key={event.id} value={event.id}>
+                      {event.event_types?.name || 'Unknown Event'}
+                    </option>
+                  ))
+                ) : (
+                  <option disabled>No events available</option>
+                )}
               </select>
             </CardContent>
           </Card>
@@ -573,11 +744,16 @@ export default function CompetitionLivePage({
                 onChange={(e) => setSelectedRound(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 focus:outline-none"
               >
-                {rounds.map((round) => (
-                  <option key={round.id} value={round.id}>
-                    {round.round_name}
-                  </option>
-                ))}
+                <option value="">Select Round...</option>
+                {rounds && rounds.length > 0 ? (
+                  rounds.map((round) => (
+                    <option key={round.id} value={round.id}>
+                      {round.round_name} (Round {round.round_number})
+                    </option>
+                  ))
+                ) : (
+                  <option disabled>No rounds available</option>
+                )}
               </select>
             </CardContent>
           </Card>
@@ -595,11 +771,16 @@ export default function CompetitionLivePage({
                 onChange={(e) => setSelectedGroup(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 focus:outline-none"
               >
-                {groups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.group_name}
-                  </option>
-                ))}
+                <option value="">Select Group...</option>
+                {groups && groups.length > 0 ? (
+                  groups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.group_name}
+                    </option>
+                  ))
+                ) : (
+                  <option disabled>No groups available</option>
+                )}
               </select>
             </CardContent>
           </Card>
@@ -627,6 +808,9 @@ export default function CompetitionLivePage({
               <CardTitle className="text-white">
                 {selectedGroupData?.group_name} ({groupStudents.length} students)
               </CardTitle>
+              <CardDescription className="text-slate-300">
+                Click any student to record their time (any order)
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -643,8 +827,8 @@ export default function CompetitionLivePage({
                       onClick={() => setSelectedStudent(student.id)}
                     >
                       <div className="flex-1">
-                        <p className="font-medium text-white">{student.name}</p>
-                        <p className="text-xs text-slate-400">Grade {student.grade}</p>
+                        <p className="font-medium text-black">{student.name}</p>
+                        <p className="text-xs text-slate-600">Grade {student.grade}</p>
                       </div>
                       <Badge variant="outline" className="text-xs ml-2">
                         {studentProgress.get(student.id) || 0}/5
@@ -688,7 +872,7 @@ export default function CompetitionLivePage({
                   autoFocus
                 />
                 <p className="text-slate-400 text-sm text-center">
-                  Preview: {parseTimeInput(inputValue) ? formatTime(parseTimeInput(inputValue)!) : "-.--"}s
+                  Preview: {parseTimeInput(inputValue) ? formatTimeDisplay(parseTimeInput(inputValue)!) : "-.--"}
                 </p>
               </div>
 
@@ -709,6 +893,18 @@ export default function CompetitionLivePage({
                 <label htmlFor="dnf" className="text-white font-medium cursor-pointer">
                   Did Not Finish (DNF)
                 </label>
+              </div>
+
+              {/* +2 Penalty option */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setPenalty(penalty === 2 ? 0 : 2)}
+                  variant={penalty === 2 ? "default" : "outline"}
+                  className={`flex-1 ${penalty === 2 ? 'bg-orange-600 hover:bg-orange-700' : ''}`}
+                  disabled={isDNF || !inputValue}
+                >
+                  {penalty === 2 ? '✓ +2 Seconds' : '+ 2 Seconds'}
+                </Button>
               </div>
 
               {/* Action buttons */}

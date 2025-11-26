@@ -13,9 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Eye, Trophy, Users, RefreshCw } from "lucide-react";
+import { ArrowLeft, Eye, Trophy, Users, RefreshCw, Share2, Copy, Check } from "lucide-react";
 import Link from "next/link";
 import { formatTime } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface Student {
   id: string;
@@ -68,6 +69,7 @@ export default function CompetitionLivePublicPage({
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Load persisted selections from sessionStorage on mount
   useEffect(() => {
@@ -81,6 +83,12 @@ export default function CompetitionLivePublicPage({
         console.error("Failed to restore session:", e);
       }
     }
+    // Reset states when competition changes
+    setEvents([]);
+    setRounds([]);
+    setResults([]);
+    setSelectedEvent("");
+    setSelectedRound("");
     fetchData();
   }, [competitionId]);
 
@@ -91,6 +99,28 @@ export default function CompetitionLivePublicPage({
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [selectedEvent, selectedRound]);
+
+  // Refetch rounds when selected event changes
+  useEffect(() => {
+    if (!selectedEvent) return;
+
+    const fetchRounds = async () => {
+      const { data: roundsData, error: roundsError } = await supabase
+        .from("rounds")
+        .select("*")
+        .eq("competition_event_id", selectedEvent)
+        .order("round_number");
+
+      if (!roundsError) {
+        setRounds(roundsData || []);
+        if (roundsData && roundsData.length > 0) {
+          setSelectedRound(roundsData[0].id);
+        }
+      }
+    };
+
+    fetchRounds();
+  }, [selectedEvent]);
 
   // Persist selections to sessionStorage
   useEffect(() => {
@@ -122,35 +152,17 @@ export default function CompetitionLivePublicPage({
 
       setCompetition(comp);
 
-      // Fetch events if not loaded
-      if (events.length === 0) {
-        const { data: eventsData, error: eventsError } = await supabase
-          .from("competition_events")
-          .select("*, event_types(*)")
-          .eq("competition_id", competitionId)
-          .order("event_types(name)");
+      // Always fetch events for this competition
+      const { data: eventsData, error: eventsError } = await supabase
+        .from("competition_events")
+        .select("*, event_types(*)")
+        .eq("competition_id", competitionId)
+        .order("event_types(name)");
 
-        if (!eventsError) {
-          setEvents(eventsData || []);
-          if (eventsData && eventsData.length > 0 && !selectedEvent) {
-            setSelectedEvent(eventsData[0].id);
-          }
-        }
-      }
-
-      // Fetch rounds for selected event
-      if (selectedEvent) {
-        const { data: roundsData, error: roundsError } = await supabase
-          .from("rounds")
-          .select("*")
-          .eq("competition_event_id", selectedEvent)
-          .order("round_number");
-
-        if (!roundsError) {
-          setRounds(roundsData || []);
-          if (roundsData && roundsData.length > 0 && !selectedRound) {
-            setSelectedRound(roundsData[0].id);
-          }
+      if (!eventsError) {
+        setEvents(eventsData || []);
+        if (eventsData && eventsData.length > 0 && !selectedEvent) {
+          setSelectedEvent(eventsData[0].id);
         }
       }
 
@@ -165,39 +177,30 @@ export default function CompetitionLivePublicPage({
         setGroups(groupsData || []);
       }
 
-      // Fetch results if round selected - optimized with joins
+      // Fetch results if round selected - get live data from results table
       if (selectedRound) {
-        const { data: finalScores, error: scoresError } = await supabase
-          .from("final_scores")
-          .select(
-            `
-            student_id,
-            students!inner(id, name),
-            best_time_milliseconds,
-            average_time_milliseconds,
-            final_ranking,
-            advancement_status
-          `
-          )
-          .eq("round_id", selectedRound)
-          .order("final_ranking");
+        // Fetch all registrations for this competition
+        const { data: registrationsData } = await supabase
+          .from("registrations")
+          .select("*, students(id, first_name, last_name, grade)")
+          .eq("competition_id", competitionId);
 
-        if (!scoresError && finalScores && finalScores.length > 0) {
-          // Get all group assignments in one query
-          const { data: assignments, error: assignError } = await supabase
+        if (registrationsData && registrationsData.length > 0) {
+          const studentIds = registrationsData.map((r: any) => r.students.id);
+
+          // Get all results for this round
+          const { data: allResults } = await supabase
+            .from("results")
+            .select("student_id, time_milliseconds, is_dnf, attempt_number")
+            .eq("round_id", selectedRound)
+            .in("student_id", studentIds);
+
+          // Get group assignments
+          const { data: assignments } = await supabase
             .from("group_assignments")
             .select("student_id, competition_groups(id, group_name)")
             .eq("competition_id", competitionId)
-            .in(
-              "student_id",
-              finalScores.map((s: any) => s.student_id)
-            );
-
-          // Get all results in one query
-          const { data: allResults, error: resultsError } = await supabase
-            .from("results")
-            .select("student_id, is_dnf")
-            .eq("round_id", selectedRound);
+            .in("student_id", studentIds);
 
           // Create lookup maps
           const assignmentMap = new Map(
@@ -207,32 +210,63 @@ export default function CompetitionLivePublicPage({
             ])
           );
 
-          const resultsMap = new Map<string, { count: number; dnfCount: number }>();
-          (allResults || []).forEach((r: any) => {
-            const current = resultsMap.get(r.student_id) || { count: 0, dnfCount: 0 };
-            resultsMap.set(r.student_id, {
-              count: current.count + 1,
-              dnfCount: current.dnfCount + (r.is_dnf ? 1 : 0),
-            });
-          });
+          // Build a map of student times and attempts
+          const studentResultsMap = new Map<
+            string,
+            { bestTime: number | null; averageTime: number | null; attempts: number; dnfCount: number }
+          >();
 
-          // Build results array
-          const resultsData: Result[] = finalScores.map((score: any) => {
-            const resultCounts = resultsMap.get(score.student_id) || {
-              count: 0,
+          allResults?.forEach((result: any) => {
+            const studentId = result.student_id;
+            let current = studentResultsMap.get(studentId) || {
+              bestTime: null,
+              averageTime: null,
+              attempts: 0,
               dnfCount: 0,
             };
-            return {
-              student_id: score.student_id,
-              student_name: (score.students as any)?.name || "Unknown",
-              group_id: assignmentMap.get(score.student_id) || "",
-              best_time: score.best_time_milliseconds,
-              average_time: score.average_time_milliseconds,
-              attempts_completed: resultCounts.count,
-              dnf_count: resultCounts.dnfCount,
-              advancement_status: score.advancement_status,
-            };
+
+            // Track best time (excluding DNF)
+            if (!result.is_dnf && result.time_milliseconds) {
+              current.bestTime = !current.bestTime
+                ? result.time_milliseconds
+                : Math.min(current.bestTime, result.time_milliseconds);
+            }
+
+            current.attempts += 1;
+            if (result.is_dnf) current.dnfCount += 1;
+
+            studentResultsMap.set(studentId, current);
           });
+
+          // Build results array with live data - show ALL students, with times if available
+          const resultsData: Result[] = registrationsData
+            .map((reg: any) => {
+              const studentId = reg.students.id;
+              const stats = studentResultsMap.get(studentId) || {
+                bestTime: null,
+                averageTime: null,
+                attempts: 0,
+                dnfCount: 0,
+              };
+
+              return {
+                student_id: studentId,
+                student_name: `${reg.students.first_name} ${reg.students.last_name}`.trim(),
+                group_id: assignmentMap.get(studentId) || "",
+                best_time: stats.bestTime || 0,
+                average_time: stats.averageTime || 0,
+                attempts_completed: stats.attempts,
+                dnf_count: stats.dnfCount,
+                advancement_status: undefined, // Will be filled when round is completed
+              };
+            })
+            .sort((a, b) => {
+              // Sort by best time (students with times first, then by time)
+              if (!a.best_time && !b.best_time) return 0;
+              if (!a.best_time) return 1;
+              if (!b.best_time) return -1;
+              return a.best_time - b.best_time;
+            });
 
           setResults(resultsData);
         } else {
@@ -260,6 +294,33 @@ export default function CompetitionLivePublicPage({
   const getGroupName = (groupId: string) => {
     const group = groups.find((g) => g.id === groupId);
     return group?.group_name || "Unknown";
+  };
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/competitions/${competitionId}/live`;
+
+    // Try native share API first
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${competition?.name} - Live Results`,
+          text: "Watch the live cubing competition results",
+          url: url,
+        });
+        return;
+      } catch (err) {
+        console.log("Share cancelled");
+      }
+    }
+
+    // Fallback: copy to clipboard
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
   };
 
   const getStatusBadge = (status?: string) => {
@@ -339,6 +400,22 @@ export default function CompetitionLivePublicPage({
                 <p className="text-slate-300">{competition.description}</p>
               )}
             </div>
+            <Button
+              onClick={handleShare}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white transition"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Share2 className="h-4 w-4" />
+                  Share Link
+                </>
+              )}
+            </Button>
           </div>
 
           {/* Location */}

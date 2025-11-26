@@ -7,7 +7,8 @@ import {
   Medal,
   BarChart3,
   Settings,
-  LogOut
+  LogOut,
+  Eye
 } from "lucide-react";
 
 export default function DashboardLayout({
@@ -44,6 +45,9 @@ export default function DashboardLayout({
             </NavItem>
             <NavItem href="/dashboard/rankings" icon={<Medal className="h-5 w-5" />}>
               Rankings
+            </NavItem>
+            <NavItem href="/competitions" icon={<Eye className="h-5 w-5" />}>
+              Parent Live View
             </NavItem>
             <NavItem href="/dashboard/reports" icon={<BarChart3 className="h-5 w-5" />}>
               Reports
