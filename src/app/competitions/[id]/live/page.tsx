@@ -40,6 +40,8 @@ interface Result {
   attempts_completed: number;
   dnf_count: number;
   advancement_status?: string;
+  attempts: Array<{ time: number | null; is_dnf: boolean }>;
+  is_record_breaker?: boolean;
 }
 
 interface Competition {
@@ -92,11 +94,11 @@ export default function CompetitionLivePublicPage({
     fetchData();
   }, [competitionId]);
 
-  // Auto-refresh every 5 seconds
+  // Auto-refresh every 2 seconds for real-time sync
   useEffect(() => {
     if (!selectedEvent || !selectedRound) return;
 
-    const interval = setInterval(fetchData, 5000);
+    const interval = setInterval(fetchData, 2000);
     return () => clearInterval(interval);
   }, [selectedEvent, selectedRound]);
 
@@ -210,10 +212,16 @@ export default function CompetitionLivePublicPage({
             ])
           );
 
-          // Build a map of student times and attempts
+          // Build a map of student times and all attempts
           const studentResultsMap = new Map<
             string,
-            { bestTime: number | null; averageTime: number | null; attempts: number; dnfCount: number }
+            {
+              bestTime: number | null;
+              averageTime: number | null;
+              attempts: number;
+              dnfCount: number;
+              allAttempts: Array<{ time: number | null; is_dnf: boolean }>;
+            }
           >();
 
           allResults?.forEach((result: any) => {
@@ -223,7 +231,14 @@ export default function CompetitionLivePublicPage({
               averageTime: null,
               attempts: 0,
               dnfCount: 0,
+              allAttempts: [],
             };
+
+            // Track all attempts
+            current.allAttempts.push({
+              time: result.is_dnf ? null : result.time_milliseconds,
+              is_dnf: result.is_dnf,
+            });
 
             // Track best time (excluding DNF)
             if (!result.is_dnf && result.time_milliseconds) {
@@ -238,6 +253,14 @@ export default function CompetitionLivePublicPage({
             studentResultsMap.set(studentId, current);
           });
 
+          // Find competition record (best time across all students)
+          let recordTime: number | null = null;
+          studentResultsMap.forEach((stats) => {
+            if (stats.bestTime) {
+              recordTime = recordTime ? Math.min(recordTime, stats.bestTime) : stats.bestTime;
+            }
+          });
+
           // Build results array with live data - show ALL students, with times if available
           const resultsData: Result[] = registrationsData
             .map((reg: any) => {
@@ -247,7 +270,14 @@ export default function CompetitionLivePublicPage({
                 averageTime: null,
                 attempts: 0,
                 dnfCount: 0,
+                allAttempts: [],
               };
+
+              // Pad attempts array to show all 5 slots
+              const allAttempts = [...stats.allAttempts];
+              while (allAttempts.length < 5) {
+                allAttempts.push({ time: null, is_dnf: false });
+              }
 
               return {
                 student_id: studentId,
@@ -257,7 +287,9 @@ export default function CompetitionLivePublicPage({
                 average_time: stats.averageTime || 0,
                 attempts_completed: stats.attempts,
                 dnf_count: stats.dnfCount,
-                advancement_status: undefined, // Will be filled when round is completed
+                advancement_status: undefined,
+                attempts: allAttempts,
+                is_record_breaker: !!(recordTime && stats.bestTime && stats.bestTime === recordTime && stats.bestTime > 0),
               };
             })
             .sort((a, b) => {
@@ -438,7 +470,7 @@ export default function CompetitionLivePublicPage({
             </div>
             <Badge className="bg-white/20 flex items-center gap-2">
               {isRefreshing && <RefreshCw className="h-3 w-3 animate-spin" />}
-              Auto-refreshing every 5 seconds
+              Auto-refreshing every 2 seconds
             </Badge>
           </CardContent>
         </Card>
@@ -510,13 +542,15 @@ export default function CompetitionLivePublicPage({
               <Table>
                 <TableHeader>
                   <TableRow className="border-slate-700 hover:bg-slate-700/50">
-                    <TableHead className="text-slate-300 w-12">Position</TableHead>
+                    <TableHead className="text-slate-300 w-12">Pos</TableHead>
                     <TableHead className="text-slate-300">Group</TableHead>
                     <TableHead className="text-slate-300">Name</TableHead>
-                    <TableHead className="text-slate-300 text-right">Best Time</TableHead>
-                    <TableHead className="text-slate-300 text-right">Average</TableHead>
-                    <TableHead className="text-slate-300 text-center">Status</TableHead>
-                    <TableHead className="text-slate-300 text-center">Progress</TableHead>
+                    <TableHead className="text-slate-300 text-right">Attempt 1</TableHead>
+                    <TableHead className="text-slate-300 text-right">Attempt 2</TableHead>
+                    <TableHead className="text-slate-300 text-right">Attempt 3</TableHead>
+                    <TableHead className="text-slate-300 text-right">Attempt 4</TableHead>
+                    <TableHead className="text-slate-300 text-right">Attempt 5</TableHead>
+                    <TableHead className="text-slate-300 text-right">Best</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -545,20 +579,27 @@ export default function CompetitionLivePublicPage({
                           {getGroupName(result.group_id)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-white font-medium">{result.student_name}</TableCell>
-                      <TableCell className="text-right text-white font-mono">
-                        {formatTime(result.best_time)}s
+                      <TableCell className="text-white font-medium">
+                        <div className="flex items-center gap-2">
+                          {result.student_name}
+                          {result.is_record_breaker && (
+                            <Badge className="bg-yellow-600 animate-pulse">🏆 RECORD</Badge>
+                          )}
+                        </div>
                       </TableCell>
-                      <TableCell className="text-right text-white font-mono">
-                        {formatTime(result.average_time)}s
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {getStatusBadge(result.advancement_status)}
-                      </TableCell>
-                      <TableCell className="text-center text-white">
-                        <Badge variant="outline" className="border-slate-600 text-slate-300">
-                          {result.attempts_completed}/5
-                        </Badge>
+                      {result.attempts.map((attempt, attemptIdx) => (
+                        <TableCell key={attemptIdx} className="text-right text-white font-mono text-sm">
+                          {attempt.time === null ? (
+                            <span className="text-slate-500">-</span>
+                          ) : attempt.is_dnf ? (
+                            <span className="text-red-400 font-bold">DNF</span>
+                          ) : (
+                            <span>{formatTime(attempt.time)}</span>
+                          )}
+                        </TableCell>
+                      ))}
+                      <TableCell className="text-right text-white font-mono font-bold">
+                        {result.best_time > 0 ? formatTime(result.best_time) : "-"}
                       </TableCell>
                     </TableRow>
                   ))}
