@@ -545,10 +545,23 @@ export default function CompetitionLivePage({
       );
 
       if (upsertError) {
-        console.error("Error updating ranking:", upsertError);
+        console.error("Error updating ranking:", {
+          message: upsertError.message,
+          details: upsertError.details,
+          hint: upsertError.hint,
+          code: upsertError.code,
+          studentId,
+          roundId,
+          ranking
+        });
       }
     } catch (error) {
-      console.error("Error in updateStudentRanking:", error);
+      console.error("Error in updateStudentRanking:", {
+        message: error instanceof Error ? error.message : String(error),
+        error,
+        studentId,
+        roundId,
+      });
     }
   };
 
@@ -557,6 +570,15 @@ export default function CompetitionLivePage({
       toast({
         title: "Not Live",
         description: "Click 'Go Live' to start recording times",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedRound) {
+      toast({
+        title: "No Round Selected",
+        description: "Please select a round first",
         variant: "destructive",
       });
       return;
@@ -577,25 +599,28 @@ export default function CompetitionLivePage({
     try {
       const timeMs = isDNF ? null : parseTimeInput(inputValue);
 
-      // Save to database
-      await supabase.from("results").insert({
+      // Save to database with penalty_seconds field
+      const { data, error } = await supabase.from("results").insert({
         round_id: selectedRound,
         student_id: studentId,
         attempt_number: currentAttempt,
         time_milliseconds: timeMs,
         is_dnf: isDNF,
-        recorded_by: "coach", // TODO: Get actual coach user
-        recorded_at: new Date().toISOString(),
+        penalty_seconds: penalty, // 0 or 2
       });
 
-      // Add penalty if applicable
-      const finalTimeMs = isDNF ? null : (penalty === 2 ? timeMs! + 2000 : timeMs);
+      if (error) {
+        console.error("Database error:", error);
+        throw new Error(error.message || "Failed to save time to database");
+      }
+
+      console.log("Time saved successfully:", { timeMs, penalty, data });
 
       toast({
         title: "Success",
         description: isDNF
           ? `Recorded DNF for attempt ${currentAttempt}`
-          : `Recorded ${formatTime(finalTimeMs!)}${penalty === 2 ? ' (+2s)' : ''} for attempt ${currentAttempt}`,
+          : `Recorded ${formatTime(timeMs!)}${penalty === 2 ? ' (+2s penalty)' : ''} for attempt ${currentAttempt}`,
       });
 
       // Clear input, DNF, and penalty
@@ -912,7 +937,7 @@ export default function CompetitionLivePage({
                 <Button
                   onClick={() => handleTimeEntry(selectedStudent)}
                   className="flex-1 h-12 text-lg gap-2"
-                  disabled={!selectedStudent || (!inputValue && !isDNF) || !isLive}
+                  disabled={!selectedStudent || !selectedRound || (!inputValue && !isDNF) || !isLive}
                 >
                   <CheckCircle2 className="h-5 w-5" />
                   Record Attempt
