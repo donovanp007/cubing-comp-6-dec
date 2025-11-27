@@ -182,17 +182,27 @@ export default function CompetitionLivePage({
         setSelectedEvent(eventsData[0].id);
       }
 
-      // Fetch groups with students
+      // Fetch groups
       const { data: groupsData } = await supabase
         .from("competition_groups")
-        .select("*, group_assignments(students(*))")
+        .select("*")
         .eq("competition_id", competitionId)
-        .order("sort_order");
+        .order("sort_order", { ascending: true });
 
-      let processedGroups = groupsData?.map((g: any) => ({
+      // Fetch group assignments with students
+      const { data: assignmentsData } = await supabase
+        .from("group_assignments")
+        .select("group_id, student_id, students(id, first_name, last_name, grade)")
+        .eq("competition_id", competitionId);
+
+      // Map students to groups
+      let processedGroups = (groupsData || []).map((g: any) => ({
         ...g,
-        students: g.group_assignments?.map((a: any) => a.students) || [],
-      })) || [];
+        students: (assignmentsData || [])
+          .filter((a: any) => a.group_id === g.id)
+          .map((a: any) => a.students)
+          .filter(Boolean),
+      }));
 
       // If no groups exist, fetch students from registrations and create a default group
       const totalStudentsInGroups = processedGroups.reduce(
@@ -534,9 +544,8 @@ export default function CompetitionLivePage({
         {
           student_id: studentId,
           round_id: roundId,
-          best_time: ranking.bestTime,
-          average_time: ranking.averageTime,
-          is_dnf: ranking.isDNF,
+          best_time_milliseconds: ranking.bestTime,
+          average_time_milliseconds: ranking.averageTime,
           updated_at: new Date().toISOString(),
         },
         {
@@ -599,14 +608,17 @@ export default function CompetitionLivePage({
     try {
       const timeMs = isDNF ? null : parseTimeInput(inputValue);
 
-      // Save to database with penalty_seconds field
-      const { data, error } = await supabase.from("results").insert({
+      // Save to database with penalty_seconds field (using upsert to handle updates)
+      const { data, error } = await supabase.from("results").upsert({
         round_id: selectedRound,
         student_id: studentId,
         attempt_number: currentAttempt,
         time_milliseconds: timeMs,
         is_dnf: isDNF,
         penalty_seconds: penalty, // 0 or 2
+      },
+      {
+        onConflict: "round_id,student_id,attempt_number",
       });
 
       if (error) {
