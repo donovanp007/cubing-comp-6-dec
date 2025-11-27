@@ -124,6 +124,21 @@ export default function CompetitionLivePage({
     }
   }, [selectedRound, selectedGroup]);
 
+  // When student selection changes, reset input fields and update current attempt
+  useEffect(() => {
+    if (selectedStudent && studentProgress) {
+      // Clear input fields
+      setInputValue("");
+      setIsDNF(false);
+      setPenalty(0);
+
+      // Get student's current progress and set attempt to next one
+      const progress = studentProgress.get(selectedStudent) || 0;
+      const nextAttempt = Math.min(progress + 1, 5);
+      setCurrentAttempt(nextAttempt);
+    }
+  }, [selectedStudent, studentProgress]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -498,6 +513,65 @@ export default function CompetitionLivePage({
       });
     } finally {
       setIsCompleting(false);
+    }
+  };
+
+  const handleMoveToNextRound = async () => {
+    try {
+      if (!selectedEvent) return;
+
+      // Fetch all rounds for this event
+      const { data: allRounds } = await supabase
+        .from("rounds")
+        .select("*")
+        .eq("competition_event_id", selectedEvent)
+        .order("round_number", { ascending: true });
+
+      if (!allRounds || allRounds.length === 0) {
+        toast({
+          title: "No Rounds Found",
+          description: "No rounds available for this event",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Find current round number
+      const currentRound = allRounds.find((r) => r.id === selectedRound);
+      if (!currentRound) return;
+
+      const currentRoundNumber = currentRound.round_number;
+      const nextRound = allRounds.find((r) => r.round_number === currentRoundNumber + 1);
+
+      if (!nextRound) {
+        toast({
+          title: "No Next Round",
+          description: "This was the final round",
+          variant: "default",
+        });
+        return;
+      }
+
+      // Move to next round
+      setSelectedRound(nextRound.id);
+      setAdvancementResults(null);
+      setInputValue("");
+      setIsDNF(false);
+      setPenalty(0);
+      setCurrentAttempt(1);
+      setStudentProgress(new Map());
+
+      toast({
+        title: "Moving to Next Round",
+        description: `Moving to Round ${nextRound.round_number}: ${nextRound.round_name}`,
+      });
+    } catch (error) {
+      console.error("Error moving to next round:", error);
+      toast({
+        title: "Error",
+        description: "Failed to move to next round",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1171,6 +1245,14 @@ export default function CompetitionLivePage({
                   </div>
                 </div>
               )}
+
+              {/* Move to Next Round Button */}
+              <Button
+                onClick={handleMoveToNextRound}
+                className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700 mt-4"
+              >
+                → Move to Next Round
+              </Button>
             </CardContent>
           </Card>
         )}
