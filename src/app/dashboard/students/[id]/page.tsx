@@ -28,8 +28,11 @@ import {
   Mail,
   School,
   GraduationCap,
+  Zap,
+  Star,
 } from "lucide-react";
 import type { Student, Badge as BadgeType, StudentAchievement, StudentStreak, WeeklyResult } from "@/lib/types/database.types";
+import { getStudentPointHistory, getStudentPointSummary } from "@/app/actions/students";
 
 interface StudentAchievementWithBadge extends StudentAchievement {
   badges: BadgeType;
@@ -44,6 +47,24 @@ interface WeeklyResultWithComp extends WeeklyResult {
   };
 }
 
+interface StudentPointRecord {
+  competition_id: string
+  competition_name: string
+  competition_date: string
+  event_name: string
+  round_name: string
+  total_points: number
+  best_time_points: number
+  average_time_points: number
+  bonus_points: number
+  bonus_details: {
+    pb_bonus: number
+    clutch_bonus: number
+    streak_bonus: number
+    school_momentum_bonus: number
+  }
+}
+
 export default function StudentDetailPage() {
   const params = useParams();
   const studentId = params.id as string;
@@ -52,6 +73,8 @@ export default function StudentDetailPage() {
   const [achievements, setAchievements] = useState<StudentAchievementWithBadge[]>([]);
   const [streaks, setStreaks] = useState<StudentStreak[]>([]);
   const [results, setResults] = useState<WeeklyResultWithComp[]>([]);
+  const [pointHistory, setPointHistory] = useState<StudentPointRecord[]>([]);
+  const [pointSummary, setPointSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -108,6 +131,17 @@ export default function StudentDetailPage() {
 
     setResults(resultData || []);
 
+    // Fetch point history and summary
+    try {
+      const history = await getStudentPointHistory(studentId);
+      setPointHistory(history);
+
+      const summary = await getStudentPointSummary(studentId);
+      setPointSummary(summary);
+    } catch (error) {
+      console.error("Error loading point data:", error);
+    }
+
     setLoading(false);
   };
 
@@ -134,7 +168,8 @@ export default function StudentDetailPage() {
     ? Math.min(...results.filter((r) => r.best_time).map((r) => r.best_time!))
     : null;
   const participationStreak = streaks.find((s) => s.streak_type === "participation");
-  const totalPoints = achievements.reduce((sum, a) => sum + (a.badges?.points || 0), 0);
+  const badgePoints = achievements.reduce((sum, a) => sum + (a.badges?.points || 0), 0);
+  const careerPoints = pointSummary?.total_career_points || 0;
 
   return (
     <div className="p-8">
@@ -238,12 +273,142 @@ export default function StudentDetailPage() {
           gradient="from-green-500 to-emerald-500"
         />
         <StatCard
-          icon={<User className="h-5 w-5" />}
-          label="Points"
-          value={totalPoints.toString()}
-          gradient="from-indigo-500 to-purple-500"
+          icon={<Star className="h-5 w-5" />}
+          label="Career Points"
+          value={careerPoints.toString()}
+          gradient="from-amber-500 to-yellow-500"
         />
       </div>
+
+      {/* Points Breakdown Section */}
+      {pointHistory.length > 0 && (
+        <>
+          {/* Bonus Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            {(() => {
+              const totalBestTime = pointHistory.reduce((sum, r) => sum + r.best_time_points, 0);
+              const totalAvgTime = pointHistory.reduce((sum, r) => sum + r.average_time_points, 0);
+              const totalPBBonus = pointHistory.reduce((sum, r) => sum + r.bonus_details.pb_bonus, 0);
+              const totalClutchBonus = pointHistory.reduce((sum, r) => sum + r.bonus_details.clutch_bonus, 0);
+
+              return (
+                <>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-white">
+                          <Trophy className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Best Time Pts</p>
+                          <p className="text-lg font-bold">{totalBestTime.toFixed(1)}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white">
+                          <Trophy className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Avg Time Pts</p>
+                          <p className="text-lg font-bold">{totalAvgTime.toFixed(1)}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center text-white">
+                          <Star className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">PB Bonuses</p>
+                          <p className="text-lg font-bold">{totalPBBonus.toFixed(1)}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center text-white">
+                          <Flame className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Clutch Bonuses</p>
+                          <p className="text-lg font-bold">{totalClutchBonus.toFixed(1)}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              );
+            })()}
+          </div>
+
+          {/* Points History Table */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-blue-500" />
+                Points History
+              </CardTitle>
+              <CardDescription>Career points earned by competition</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Competition</TableHead>
+                      <TableHead>Event</TableHead>
+                      <TableHead className="text-right">Best Time</TableHead>
+                      <TableHead className="text-right">Avg Time</TableHead>
+                      <TableHead className="text-right">Bonuses</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pointHistory.slice(0, 10).map((record) => (
+                      <TableRow key={`${record.competition_id}-${record.round_name}`}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-gray-900">{record.competition_name}</p>
+                            <p className="text-xs text-gray-500">{new Date(record.competition_date).toLocaleDateString()}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm">{record.event_name}</TableCell>
+                        <TableCell className="text-right font-mono text-green-600">
+                          {record.best_time_points.toFixed(1)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-blue-600">
+                          {record.average_time_points.toFixed(1)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {record.bonus_points > 0 ? (
+                            <span className="text-sm font-medium text-orange-600">
+                              +{record.bonus_points.toFixed(1)}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-lg">
+                          {record.total_points.toFixed(1)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Badges */}
@@ -396,6 +561,79 @@ export default function StudentDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* School & Scoring Info */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <School className="h-5 w-5 text-blue-500" />
+            School & Scoring Info
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* School Info */}
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-3">School</h4>
+              {student?.school ? (
+                <div className="space-y-2">
+                  <p className="text-gray-700">{student.school}</p>
+                  {student.grade && (
+                    <p className="text-sm text-gray-600">
+                      <strong>Grade:</strong> {student.grade}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-3">
+                    Your points contribute to your school's team standing in competitions. Check the School Standings page to see how your school ranks!
+                  </p>
+                </div>
+              ) : (
+                <p className="text-gray-500">No school assigned</p>
+              )}
+            </div>
+
+            {/* Grade Multiplier Info */}
+            <div>
+              <h4 className="font-semibold text-gray-900 mb-3">Point Multiplier</h4>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-gray-700 mb-2">
+                  Your grade affects your point multiplier in the scoring system:
+                </p>
+                <div className="text-sm space-y-1">
+                  {student?.grade && (
+                    <>
+                      <p className="font-mono">
+                        <strong>Your Grade ({student.grade}):</strong>{" "}
+                        <span className="text-green-600 font-bold">
+                          {(() => {
+                            const grade = parseInt(student.grade);
+                            const multiplier = Math.max(1.0, 2.0 - (grade - 5) * 0.15);
+                            return multiplier.toFixed(2) + "x";
+                          })()}
+                        </span>
+                      </p>
+                      <p className="text-xs text-gray-600 mt-2">
+                        This means for every 10 points from solving times, you earn{" "}
+                        <strong>
+                          {(() => {
+                            const grade = parseInt(student.grade);
+                            const multiplier = Math.max(1.0, 2.0 - (grade - 5) * 0.15);
+                            return (10 * multiplier).toFixed(1);
+                          })()}
+                        </strong>{" "}
+                        points toward your school team.
+                      </p>
+                    </>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-3">
+                  Lower grades earn higher multipliers (up to 2.0x for Grade 5) to encourage younger student participation.
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

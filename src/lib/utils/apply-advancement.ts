@@ -1,6 +1,7 @@
 /**
  * Apply Advancement to Database
  * Takes advancement results and updates the database with advancement status
+ * INTEGRATED WITH TIER-BASED SCHOOL LEAGUE POINT SYSTEM
  */
 
 import { createClient } from "@/lib/supabase/client";
@@ -10,6 +11,12 @@ import {
   determineMedalists,
   MedalResult,
 } from "./advancement";
+
+// Import tier points system
+import { calculatePointsForRound, calculateSchoolMomentumBonus } from "./tier-points";
+import { recordPointTransactions, recordSchoolMomentumBonus } from "./record-points";
+import { updateAllSchoolStandingsForCompetition } from "./aggregate-school-standings";
+import { evaluateAndAwardBadges } from "./badge-evaluator";
 
 interface RoundConfig {
   advancementType: "percentage" | "count" | "time" | "all";
@@ -192,6 +199,70 @@ export async function completeRoundAndCalculateAdvancement(
       advancementResult,
       isFinalsRound
     );
+
+    // NEW: Calculate and record tier-based points
+    if (applicationResult.success) {
+      try {
+        console.log("🔹 Calculating tier-based points for round...");
+
+        // Get competition ID from the round
+        const { data: roundData, error: roundError } = await supabase
+          .from("rounds")
+          .select("competition_event_id, competition_events(competition_id)")
+          .eq("id", roundId)
+          .single();
+
+        if (roundError || !roundData) {
+          console.error("Error fetching competition ID:", roundError);
+          return applicationResult;
+        }
+
+        const competitionId = (roundData as any).competition_events.competition_id;
+
+        // Calculate points for all students in this round
+        const pointCalculations = await calculatePointsForRound(roundId);
+        console.log(`✅ Calculated points for ${pointCalculations.length} students`);
+
+        // Record point transactions
+        let totalRecorded = 0;
+        for (const calculation of pointCalculations) {
+          const recorded = await recordPointTransactions(calculation);
+          totalRecorded += recorded.length;
+        }
+        console.log(`✅ Recorded ${totalRecorded} point transactions`);
+
+        // Calculate and record school momentum bonuses
+        const schools = new Set(pointCalculations.map(c => c.schoolId));
+        for (const schoolId of schools) {
+          const bonusAmount = await calculateSchoolMomentumBonus(roundId, schoolId);
+          if (bonusAmount > 0) {
+            await recordSchoolMomentumBonus(
+              competitionId,
+              competitionEventId,
+              roundId,
+              schoolId,
+              bonusAmount
+            );
+            console.log(`✅ School momentum bonus recorded: +${bonusAmount} for school ${schoolId}`);
+          }
+        }
+
+        // Update all school standings for the competition
+        const standingsUpdated = await updateAllSchoolStandingsForCompetition(competitionId);
+        if (standingsUpdated) {
+          console.log("✅ School standings updated");
+        }
+
+        // Evaluate and award badges
+        const badgesAwarded = await evaluateAndAwardBadges(competitionId);
+        console.log(`✅ Badges awarded: ${badgesAwarded}`);
+
+        console.log("🎯 Point system integration complete!");
+      } catch (error) {
+        // Log error but don't fail the advancement - points are secondary
+        console.error("⚠️  Error in point calculation:", error);
+      }
+    }
 
     return applicationResult;
   } catch (error) {

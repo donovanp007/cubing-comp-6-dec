@@ -4,13 +4,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -19,128 +13,227 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatTime } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { Trophy, Medal, Users, TrendingUp, Flame } from "lucide-react";
-import type { Student, EventType } from "@/lib/types/database.types";
+import { Trophy, Medal, Users, TrendingUp } from "lucide-react";
 
-interface RankingEntry {
-  student: Student;
-  competitions: number;
-  best_time: number | null;
-  best_average: number | null;
-  podiums: number;
-  wins: number;
+interface SchoolRanking {
+  school_id: string;
+  school_name: string;
+  total_points: number;
+  competitions_count: number;
+  students_count: number;
+  rank: number;
+}
+
+interface StudentRanking {
+  student_id: string;
+  first_name: string;
+  last_name: string;
+  grade: number;
+  school_name: string;
+  total_points: number;
+  competitions_count: number;
+  rank: number;
 }
 
 export default function RankingsPage() {
-  const [rankings, setRankings] = useState<RankingEntry[]>([]);
-  const [eventTypes, setEventTypes] = useState<EventType[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<string>("all");
+  const [schoolRankings, setSchoolRankings] = useState<SchoolRanking[]>([]);
+  const [studentRankings, setStudentRankings] = useState<StudentRanking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"schools" | "students">("schools");
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchEventTypes();
     fetchRankings();
-  }, [selectedEvent]);
-
-  const fetchEventTypes = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("event_types")
-      .select("*")
-      .eq("active", true)
-      .order("sort_order");
-    if (data) setEventTypes(data);
-  };
+  }, []);
 
   const fetchRankings = async () => {
     setLoading(true);
-    const supabase = createClient();
+    try {
+      const supabase = createClient();
 
-    // Get all students with their weekly results
-    const { data: students } = await supabase
-      .from("students")
-      .select("*")
-      .eq("status", "active");
+      // Fetch overall school rankings
+      const { data: schoolData, error: schoolError } = await supabase
+        .from("point_transactions")
+        .select(
+          `
+          school_id,
+          schools(id, name),
+          competition_id
+        `
+        );
 
-    if (!students) {
+      if (schoolError) {
+        console.error("School rankings error:", schoolError);
+        return;
+      }
+
+      // Calculate school totals
+      const schoolTotals = new Map<string, { name: string; points: number; competitions: Set<string>; students: Set<string> }>();
+
+      if (schoolData) {
+        for (const record of schoolData) {
+          const schoolId = record.school_id;
+          const schoolName = record.schools?.name || "Unknown School";
+
+          if (!schoolTotals.has(schoolId)) {
+            schoolTotals.set(schoolId, { name: schoolName, points: 0, competitions: new Set(), students: new Set() });
+          }
+
+          const existing = schoolTotals.get(schoolId)!;
+          existing.competitions.add(record.competition_id);
+        }
+      }
+
+      // Get total points per school per competition
+      const { data: standingsData } = await supabase
+        .from("school_standings")
+        .select("school_id, schools(name), total_points, competition_id");
+
+      const schoolRankingsList: SchoolRanking[] = [];
+      const schoolMap = new Map<string, { points: number; competitions: Set<string>; name: string }>();
+
+      if (standingsData) {
+        for (const standing of standingsData) {
+          const schoolId = standing.school_id;
+          const schoolName = standing.schools?.name || "Unknown School";
+
+          if (!schoolMap.has(schoolId)) {
+            schoolMap.set(schoolId, { points: 0, competitions: new Set(), name: schoolName });
+          }
+
+          const existing = schoolMap.get(schoolId)!;
+          existing.points += standing.total_points || 0;
+          existing.competitions.add(standing.competition_id);
+        }
+      }
+
+      // Convert to array and sort
+      let rank = 1;
+      schoolMap.forEach((data, schoolId) => {
+        schoolRankingsList.push({
+          school_id: schoolId,
+          school_name: data.name,
+          total_points: Math.round(data.points * 10) / 10,
+          competitions_count: data.competitions.size,
+          students_count: 0, // Will fill later
+          rank: rank++,
+        });
+      });
+
+      schoolRankingsList.sort((a, b) => b.total_points - a.total_points);
+      schoolRankingsList.forEach((school, index) => {
+        school.rank = index + 1;
+      });
+
+      setSchoolRankings(schoolRankingsList);
+
+      // Fetch overall student rankings
+      const { data: studentData } = await supabase
+        .from("students")
+        .select("id, first_name, last_name, grade, schools(name)");
+
+      const studentMap = new Map<string, {
+        first_name: string;
+        last_name: string;
+        grade: number;
+        school_name: string;
+        points: number;
+        competitions: Set<string>;
+      }>();
+
+      if (studentData) {
+        for (const student of studentData) {
+          studentMap.set(student.id, {
+            first_name: student.first_name,
+            last_name: student.last_name,
+            grade: student.grade,
+            school_name: student.schools?.name || "Unknown School",
+            points: 0,
+            competitions: new Set(),
+          });
+        }
+      }
+
+      // Get point transactions for each student
+      const { data: pointData } = await supabase
+        .from("point_transactions")
+        .select("student_id, final_points, competition_id");
+
+      if (pointData) {
+        for (const point of pointData) {
+          const student = studentMap.get(point.student_id);
+          if (student) {
+            student.points += point.final_points || 0;
+            student.competitions.add(point.competition_id);
+          }
+        }
+      }
+
+      // Convert to array and sort
+      const studentRankingsList: StudentRanking[] = [];
+      rank = 1;
+      studentMap.forEach((data, studentId) => {
+        studentRankingsList.push({
+          student_id: studentId,
+          first_name: data.first_name,
+          last_name: data.last_name,
+          grade: data.grade,
+          school_name: data.school_name,
+          total_points: Math.round(data.points * 10) / 10,
+          competitions_count: data.competitions.size,
+          rank: rank++,
+        });
+      });
+
+      studentRankingsList.sort((a, b) => b.total_points - a.total_points);
+      studentRankingsList.forEach((student, index) => {
+        student.rank = index + 1;
+      });
+
+      setStudentRankings(studentRankingsList);
+    } catch (error) {
+      console.error("Error fetching rankings:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch rankings",
+        variant: "destructive",
+      });
+    } finally {
       setLoading(false);
-      return;
     }
+  };
 
-    // Get all weekly results
-    let resultsQuery = supabase
-      .from("weekly_results")
-      .select("*, weekly_competitions(*, event_types(*))");
-
-    const { data: results } = await resultsQuery;
-
-    // Calculate rankings
-    const rankingData: RankingEntry[] = students.map((student) => {
-      const studentResults = (results || []).filter(
-        (r: any) => r.student_id === student.id &&
-        (selectedEvent === "all" || r.weekly_competitions?.event_type_id === selectedEvent)
-      );
-
-      const bestTimes = studentResults
-        .map((r: any) => r.best_time)
-        .filter((t: any) => t !== null);
-      const avgTimes = studentResults
-        .map((r: any) => r.average_time)
-        .filter((t: any) => t !== null);
-
-      return {
-        student,
-        competitions: studentResults.length,
-        best_time: bestTimes.length > 0 ? Math.min(...bestTimes) : null,
-        best_average: avgTimes.length > 0 ? Math.min(...avgTimes) : null,
-        podiums: studentResults.filter((r: any) => r.ranking && r.ranking <= 3).length,
-        wins: studentResults.filter((r: any) => r.ranking === 1).length,
-      };
-    });
-
-    // Sort by best average, then best time
-    rankingData.sort((a, b) => {
-      if (a.best_average === null && b.best_average === null) return 0;
-      if (a.best_average === null) return 1;
-      if (b.best_average === null) return -1;
-      return a.best_average - b.best_average;
-    });
-
-    // Filter out students with no results
-    setRankings(rankingData.filter((r) => r.competitions > 0));
-    setLoading(false);
+  const getMedalEmoji = (rank: number) => {
+    if (rank === 1) return "🥇";
+    if (rank === 2) return "🥈";
+    if (rank === 3) return "🥉";
+    return rank;
   };
 
   return (
     <div className="p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Rankings</h1>
-          <p className="text-gray-500 mt-1">
-            Student rankings across weekly competitions
-          </p>
-        </div>
-        <Select value={selectedEvent} onValueChange={setSelectedEvent}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Filter by event" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Events</SelectItem>
-            {eventTypes.map((event) => (
-              <SelectItem key={event.id} value={event.id}>
-                {event.display_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">League Rankings</h1>
+        <p className="text-gray-500 mt-1">Career standings across all competitions</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-500 flex items-center justify-center text-white">
+                <Trophy className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Schools Competing</p>
+                <p className="text-2xl font-bold">{schoolRankings.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
@@ -148,8 +241,8 @@ export default function RankingsPage() {
                 <Users className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Ranked Students</p>
-                <p className="text-2xl font-bold">{rankings.length}</p>
+                <p className="text-sm text-gray-500">Total Students</p>
+                <p className="text-2xl font-bold">{studentRankings.length}</p>
               </div>
             </div>
           </CardContent>
@@ -161,45 +254,9 @@ export default function RankingsPage() {
                 <TrendingUp className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Best Time</p>
+                <p className="text-sm text-gray-500">Top School Points</p>
                 <p className="text-2xl font-bold">
-                  {rankings.length > 0 && rankings[0].best_time
-                    ? formatTime(Math.min(...rankings.map((r) => r.best_time || Infinity)))
-                    : "-"}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center text-white">
-                <Trophy className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Most Wins</p>
-                <p className="text-2xl font-bold">
-                  {rankings.length > 0
-                    ? Math.max(...rankings.map((r) => r.wins))
-                    : 0}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white">
-                <Medal className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Most Podiums</p>
-                <p className="text-2xl font-bold">
-                  {rankings.length > 0
-                    ? Math.max(...rankings.map((r) => r.podiums))
-                    : 0}
+                  {schoolRankings.length > 0 ? schoolRankings[0].total_points : 0}
                 </p>
               </div>
             </div>
@@ -207,91 +264,125 @@ export default function RankingsPage() {
         </Card>
       </div>
 
-      {/* Rankings Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-yellow-500" />
-            Overall Rankings
-          </CardTitle>
-          <CardDescription>
-            Ranked by best average time
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-12 text-gray-500">Loading...</div>
-          ) : rankings.length === 0 ? (
-            <div className="text-center py-12">
-              <Medal className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-              <p className="text-gray-500">No rankings yet</p>
-              <p className="text-sm text-gray-400 mt-1">
-                Rankings will appear after students participate in competitions
-              </p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">Rank</TableHead>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Grade</TableHead>
-                  <TableHead className="text-center">Comps</TableHead>
-                  <TableHead className="text-center">Wins</TableHead>
-                  <TableHead className="text-center">Podiums</TableHead>
-                  <TableHead className="text-right">Best Single</TableHead>
-                  <TableHead className="text-right">Best Average</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rankings.map((entry, index) => (
-                  <TableRow key={entry.student.id} className={index < 3 ? "bg-yellow-50/50" : ""}>
-                    <TableCell className="font-bold">
-                      {index === 0 && "🥇"}
-                      {index === 1 && "🥈"}
-                      {index === 2 && "🥉"}
-                      {index > 2 && index + 1}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-medium">
-                          {entry.student.first_name[0]}
-                          {entry.student.last_name[0]}
-                        </div>
-                        <span className="font-medium">
-                          {entry.student.first_name} {entry.student.last_name}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{entry.student.grade || "-"}</TableCell>
-                    <TableCell className="text-center">{entry.competitions}</TableCell>
-                    <TableCell className="text-center">
-                      {entry.wins > 0 && (
-                        <Badge variant="default" className="bg-yellow-500">
-                          {entry.wins}
-                        </Badge>
-                      )}
-                      {entry.wins === 0 && "-"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {entry.podiums > 0 && (
-                        <Badge variant="secondary">{entry.podiums}</Badge>
-                      )}
-                      {entry.podiums === 0 && "-"}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-green-600">
-                      {formatTime(entry.best_time)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono font-bold text-blue-600">
-                      {formatTime(entry.best_average)}
-                    </TableCell>
+      {/* Rankings Toggle */}
+      <div className="flex gap-2 mb-6">
+        <Button
+          onClick={() => setActiveTab("schools")}
+          variant={activeTab === "schools" ? "default" : "outline"}
+        >
+          School Rankings
+        </Button>
+        <Button
+          onClick={() => setActiveTab("students")}
+          variant={activeTab === "students" ? "default" : "outline"}
+        >
+          Student Rankings
+        </Button>
+      </div>
+
+      {/* School Rankings */}
+      {activeTab === "schools" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>School Standings</CardTitle>
+            <CardDescription>
+              Total points accumulated across all competitions
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="py-12 text-center text-gray-500">Loading rankings...</div>
+            ) : schoolRankings.length === 0 ? (
+              <div className="py-12 text-center text-gray-500">
+                No rankings data yet. Complete a competition to generate rankings.
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">Rank</TableHead>
+                    <TableHead>School</TableHead>
+                    <TableHead className="text-right">Total Points</TableHead>
+                    <TableHead className="text-right">Competitions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {schoolRankings.map((school) => (
+                    <TableRow key={school.school_id}>
+                      <TableCell className="font-semibold text-lg">
+                        {getMedalEmoji(school.rank)}
+                      </TableCell>
+                      <TableCell className="font-medium">{school.school_name}</TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {school.total_points.toFixed(1)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant="secondary">{school.competitions_count}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Student Rankings */}
+      {activeTab === "students" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Student Rankings</CardTitle>
+            <CardDescription>
+              Career points across all competitions
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="py-12 text-center text-gray-500">Loading rankings...</div>
+            ) : studentRankings.length === 0 ? (
+              <div className="py-12 text-center text-gray-500">
+                No rankings data yet. Complete a competition to generate rankings.
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">Rank</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Grade</TableHead>
+                    <TableHead>School</TableHead>
+                    <TableHead className="text-right">Career Points</TableHead>
+                    <TableHead className="text-right">Competitions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {studentRankings.slice(0, 100).map((student) => (
+                    <TableRow key={student.student_id}>
+                      <TableCell className="font-semibold text-lg">
+                        {getMedalEmoji(student.rank)}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {student.first_name} {student.last_name}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">Grade {student.grade}</Badge>
+                      </TableCell>
+                      <TableCell>{student.school_name}</TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {student.total_points.toFixed(1)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant="secondary">{student.competitions_count}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

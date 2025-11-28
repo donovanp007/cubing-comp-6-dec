@@ -8,7 +8,10 @@ import {
   BarChart3,
   Settings,
   LogOut,
-  Eye
+  Eye,
+  Building2,
+  Sliders,
+  Award
 } from "lucide-react";
 
 export default function DashboardLayout({
@@ -37,6 +40,9 @@ export default function DashboardLayout({
             <NavItem href="/dashboard/students" icon={<Users className="h-5 w-5" />}>
               Students
             </NavItem>
+            <NavItem href="/dashboard/schools" icon={<Building2 className="h-5 w-5" />}>
+              Schools
+            </NavItem>
             <NavItem href="/dashboard/competitions" icon={<Trophy className="h-5 w-5" />}>
               Competitions
             </NavItem>
@@ -52,6 +58,19 @@ export default function DashboardLayout({
             <NavItem href="/dashboard/reports" icon={<BarChart3 className="h-5 w-5" />}>
               Reports
             </NavItem>
+
+            <div className="pt-4 mt-4 border-t border-gray-200">
+              <div className="text-xs font-semibold text-gray-500 px-3 py-2 uppercase tracking-wide">Admin</div>
+              <NavItem href="/dashboard/admin/tier-thresholds" icon={<Sliders className="h-5 w-5" />}>
+                Tier Thresholds
+              </NavItem>
+              <NavItem href="/dashboard/admin/grade-multipliers" icon={<Medal className="h-5 w-5" />}>
+                Grade Multipliers
+              </NavItem>
+              <NavItem href="/dashboard/admin/badges" icon={<Award className="h-5 w-5" />}>
+                Badges
+              </NavItem>
+            </div>
 
             <div className="pt-4 mt-4 border-t border-gray-200">
               <NavItem href="/dashboard/settings" icon={<Settings className="h-5 w-5" />}>

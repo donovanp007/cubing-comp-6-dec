@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trophy, Calendar, MapPin, Users, Timer } from "lucide-react";
+import { Plus, Trophy, Calendar, MapPin, Users, Timer, CheckCircle } from "lucide-react";
+import { completeCompetition } from "@/app/actions/competitions";
 import type { Competition } from "@/lib/types/database.types";
 
 export default function CompetitionsPage() {
@@ -156,6 +157,10 @@ export default function CompetitionsPage() {
 }
 
 function CompetitionCard({ competition }: { competition: Competition }) {
+  const { toast } = useToast();
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [localCompetition, setLocalCompetition] = useState(competition);
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "upcoming":
@@ -165,48 +170,92 @@ function CompetitionCard({ competition }: { competition: Competition }) {
       case "in_progress":
         return <Badge variant="default">In Progress</Badge>;
       case "completed":
-        return <Badge variant="outline">Completed</Badge>;
+        return <Badge variant="outline">✓ Completed</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
+  const handleCompleteCompetition = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setIsCompleting(true);
+    try {
+      const result = await completeCompetition(competition.id);
+
+      if (result.success) {
+        setLocalCompetition({ ...localCompetition, status: "completed" });
+        toast({
+          title: "Success",
+          description: result.message,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to complete competition",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
   return (
-    <Link href={`/dashboard/competitions/${competition.id}`}>
-      <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
-        <CardHeader className="pb-2">
+    <Card className="h-full flex flex-col">
+      <Link href={`/dashboard/competitions/${competition.id}`} className="flex-1">
+        <CardHeader className="pb-2 hover:bg-gray-50 transition-colors cursor-pointer">
           <div className="flex items-start justify-between">
-            <CardTitle className="text-lg">{competition.name}</CardTitle>
-            {getStatusBadge(competition.status)}
+            <CardTitle className="text-lg">{localCompetition.name}</CardTitle>
+            {getStatusBadge(localCompetition.status)}
           </div>
-          {competition.description && (
-            <CardDescription>{competition.description}</CardDescription>
+          {localCompetition.description && (
+            <CardDescription>{localCompetition.description}</CardDescription>
           )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1 hover:bg-gray-50 transition-colors cursor-pointer">
           <div className="space-y-2 text-sm text-gray-600">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              <span>{competition.competition_date}</span>
+              <span>{localCompetition.competition_date}</span>
             </div>
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4" />
-              <span>{competition.location}</span>
+              <span>{localCompetition.location}</span>
             </div>
-            {competition.max_participants && (
+            {localCompetition.max_participants && (
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                <span>Max {competition.max_participants} participants</span>
+                <span>Max {localCompetition.max_participants} participants</span>
               </div>
             )}
           </div>
-          <div className="mt-4 pt-4 border-t">
-            <Button variant="outline" className="w-full">
-              Manage Competition
-            </Button>
-          </div>
         </CardContent>
-      </Card>
-    </Link>
+      </Link>
+      <div className="mt-4 pt-4 border-t space-y-2 px-6 pb-6">
+        <Button variant="outline" className="w-full" asChild>
+          <Link href={`/dashboard/competitions/${competition.id}`}>
+            Manage Competition
+          </Link>
+        </Button>
+        {localCompetition.status !== "completed" && (
+          <Button
+            onClick={handleCompleteCompetition}
+            disabled={isCompleting}
+            className="w-full bg-green-600 hover:bg-green-700"
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            {isCompleting ? "Completing..." : "Complete Competition"}
+          </Button>
+        )}
+      </div>
+    </Card>
   );
 }
