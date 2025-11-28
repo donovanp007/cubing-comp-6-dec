@@ -619,7 +619,7 @@ export default function CompetitionLivePage({
           student_id: studentId,
           round_id: roundId,
           best_time_milliseconds: ranking.bestTime,
-          average_time_milliseconds: ranking.averageTime,
+          average_time_milliseconds: ranking.averageTime !== null ? Math.round(ranking.averageTime) : null,
           updated_at: new Date().toISOString(),
         },
         {
