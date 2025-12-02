@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Trophy, Medal, Users, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { formatTime } from "@/lib/utils";
 
 interface SchoolRanking {
   school_id: string;
@@ -34,6 +36,8 @@ interface StudentRanking {
   total_points: number;
   competitions_count: number;
   rank: number;
+  best_time?: number | null;
+  best_average?: number | null;
 }
 
 export default function RankingsPage() {
@@ -41,11 +45,23 @@ export default function RankingsPage() {
   const [studentRankings, setStudentRankings] = useState<StudentRanking[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"schools" | "students">("schools");
+  const [filters, setFilters] = useState({
+    eventType: "all",
+    schoolYear: "all",
+    term: "all",
+    grade: "all",
+  });
+  const [availableFilters, setAvailableFilters] = useState({
+    eventTypes: [] as Array<{ id: string; name: string }>,
+    schoolYears: [] as string[],
+    terms: [] as string[],
+    grades: [] as string[],
+  });
   const { toast } = useToast();
 
   useEffect(() => {
     fetchRankings();
-  }, []);
+  }, [filters]);
 
   const fetchRankings = async () => {
     setLoading(true);
@@ -85,10 +101,17 @@ export default function RankingsPage() {
         }
       }
 
-      // Get total points per school per competition
+      // Get total points per school per competition (major competitions only)
       const { data: standingsData } = await supabase
         .from("school_standings")
-        .select("school_id, schools(name), total_points, competition_id");
+        .select(`
+          school_id,
+          schools(name),
+          total_points,
+          competition_id,
+          competitions(competition_type)
+        `)
+        .eq("competitions.competition_type", "major");
 
       const schoolRankingsList: SchoolRanking[] = [];
       const schoolMap = new Map<string, { points: number; competitions: Set<string>; name: string }>();
@@ -155,10 +178,16 @@ export default function RankingsPage() {
         }
       }
 
-      // Get point transactions for each student
+      // Get point transactions for each student (major competitions only)
       const { data: pointData } = await supabase
         .from("point_transactions")
-        .select("student_id, final_points, competition_id");
+        .select(`
+          student_id,
+          final_points,
+          competition_id,
+          competitions(competition_type)
+        `)
+        .eq("competitions.competition_type", "major");
 
       if (pointData) {
         for (const point of pointData) {
@@ -170,10 +199,46 @@ export default function RankingsPage() {
         }
       }
 
+      // Fetch career best times from final_scores (major competitions only)
+      const { data: finalScoresData } = await supabase
+        .from("final_scores")
+        .select(`
+          student_id,
+          best_time_milliseconds,
+          average_time_milliseconds,
+          rounds(competition_events(competitions(competition_type)))
+        `)
+        .eq("rounds.competition_events.competitions.competition_type", "major");
+
+      const careerBestTimes = new Map<string, { best_time?: number; best_average?: number }>();
+
+      if (finalScoresData) {
+        for (const score of finalScoresData) {
+          const existing = careerBestTimes.get(score.student_id) || { best_time: undefined, best_average: undefined };
+
+          // Track minimum single time
+          if (score.best_time_milliseconds) {
+            existing.best_time = existing.best_time
+              ? Math.min(existing.best_time, score.best_time_milliseconds)
+              : score.best_time_milliseconds;
+          }
+
+          // Track minimum average time
+          if (score.average_time_milliseconds) {
+            existing.best_average = existing.best_average
+              ? Math.min(existing.best_average, score.average_time_milliseconds)
+              : score.average_time_milliseconds;
+          }
+
+          careerBestTimes.set(score.student_id, existing);
+        }
+      }
+
       // Convert to array and sort
       const studentRankingsList: StudentRanking[] = [];
       rank = 1;
       studentMap.forEach((data, studentId) => {
+        const careerTimes = careerBestTimes.get(studentId);
         studentRankingsList.push({
           student_id: studentId,
           first_name: data.first_name,
@@ -183,6 +248,8 @@ export default function RankingsPage() {
           total_points: Math.round(data.points * 10) / 10,
           competitions_count: data.competitions.size,
           rank: rank++,
+          best_time: careerTimes?.best_time || null,
+          best_average: careerTimes?.best_average || null,
         });
       });
 
@@ -263,6 +330,77 @@ export default function RankingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Filters */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-base">Filters</CardTitle>
+          <CardDescription>Filter rankings by event, time period, and grade</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Event Type Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Event Type</label>
+              <select
+                value={filters.eventType}
+                onChange={(e) => setFilters({ ...filters, eventType: e.target.value })}
+                className="w-full px-3 py-2 border rounded-md bg-background"
+              >
+                <option value="all">All Events</option>
+                {availableFilters.eventTypes.map((et) => (
+                  <option key={et.id} value={et.id}>{et.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* School Year Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">School Year</label>
+              <select
+                value={filters.schoolYear}
+                onChange={(e) => setFilters({ ...filters, schoolYear: e.target.value })}
+                className="w-full px-3 py-2 border rounded-md bg-background"
+              >
+                <option value="all">All Years</option>
+                {availableFilters.schoolYears.map((year) => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Term Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Term</label>
+              <select
+                value={filters.term}
+                onChange={(e) => setFilters({ ...filters, term: e.target.value })}
+                className="w-full px-3 py-2 border rounded-md bg-background"
+              >
+                <option value="all">All Terms</option>
+                {availableFilters.terms.map((term) => (
+                  <option key={term} value={term}>{term}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Grade Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Grade</label>
+              <select
+                value={filters.grade}
+                onChange={(e) => setFilters({ ...filters, grade: e.target.value })}
+                className="w-full px-3 py-2 border rounded-md bg-background"
+              >
+                <option value="all">All Grades</option>
+                {availableFilters.grades.map((grade) => (
+                  <option key={grade} value={grade}>Grade {grade}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Rankings Toggle */}
       <div className="flex gap-2 mb-6">
@@ -352,6 +490,8 @@ export default function RankingsPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Grade</TableHead>
                     <TableHead>School</TableHead>
+                    <TableHead className="text-right">Best Time</TableHead>
+                    <TableHead className="text-right">Best Avg</TableHead>
                     <TableHead className="text-right">Career Points</TableHead>
                     <TableHead className="text-right">Competitions</TableHead>
                   </TableRow>
@@ -363,12 +503,23 @@ export default function RankingsPage() {
                         {getMedalEmoji(student.rank)}
                       </TableCell>
                       <TableCell className="font-medium">
-                        {student.first_name} {student.last_name}
+                        <Link
+                          href={`/dashboard/students/${student.student_id}`}
+                          className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                        >
+                          {student.first_name} {student.last_name}
+                        </Link>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">Grade {student.grade}</Badge>
                       </TableCell>
                       <TableCell>{student.school_name}</TableCell>
+                      <TableCell className="text-right font-mono text-green-600">
+                        {student.best_time ? formatTime(student.best_time) : "-"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-blue-600">
+                        {student.best_average ? formatTime(student.best_average) : "-"}
+                      </TableCell>
                       <TableCell className="text-right font-semibold">
                         {student.total_points.toFixed(1)}
                       </TableCell>

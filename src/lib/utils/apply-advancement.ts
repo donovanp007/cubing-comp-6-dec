@@ -164,19 +164,22 @@ export async function completeRoundAndCalculateAdvancement(
     // Fetch all final scores for this round
     const { data: finalScores, error: scoresError } = await supabase
       .from("final_scores")
-      .select("student_id, students(name), best_time_milliseconds, is_dnf")
+      .select("student_id, students(first_name, last_name), best_time_milliseconds")
       .eq("round_id", roundId);
 
     if (scoresError || !finalScores) {
-      throw new Error("Failed to fetch round scores");
+      console.error("Failed to fetch round scores:", scoresError);
+      throw new Error(`Failed to fetch round scores: ${scoresError?.message || 'Unknown error'}`);
     }
 
     // Convert to CompetitorResult format
     const competitors: CompetitorResult[] = finalScores.map((score: any) => ({
       studentId: score.student_id,
-      studentName: score.students?.name || "Unknown",
-      bestTime: score.best_time_milliseconds,
-      isDNF: score.is_dnf || false,
+      studentName: score.students
+        ? `${score.students.first_name} ${score.students.last_name}`.trim()
+        : "Unknown",
+      bestTime: score.best_time_milliseconds || 0,
+      isDNF: false, // DNF status is tracked in results table, not final_scores
       isDNS: false, // Could be enhanced to track DNS separately
     }));
 

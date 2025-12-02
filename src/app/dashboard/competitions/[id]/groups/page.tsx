@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Users, Plus, Trash2, GripVertical } from "lucide-react";
+import { ArrowLeft, Users, Plus, Trash2, Check, X } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 
@@ -55,6 +55,8 @@ export default function CompetitionGroupsPage({
   const [loading, setLoading] = useState(true);
   const [numGroups, setNumGroups] = useState(2);
   const [competition, setCompetition] = useState<any>(null);
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
+  const [selectedGroupForAssignment, setSelectedGroupForAssignment] = useState<string>("");
 
   useEffect(() => {
     fetchData();
@@ -134,6 +136,18 @@ export default function CompetitionGroupsPage({
         return;
       }
 
+      console.log(`Starting group creation for ${numGroups} groups with ${registeredStudents.length} students`);
+
+      // Delete existing assignments first
+      const { error: deleteAssignmentsError } = await supabase
+        .from("group_assignments")
+        .delete()
+        .eq("competition_id", competitionId);
+
+      if (deleteAssignmentsError) {
+        console.error("Failed to delete old assignments:", deleteAssignmentsError);
+      }
+
       // Delete existing groups
       const { error: deleteError } = await supabase
         .from("competition_groups")
@@ -141,6 +155,7 @@ export default function CompetitionGroupsPage({
         .eq("competition_id", competitionId);
 
       if (deleteError) throw deleteError;
+      console.log("✓ Deleted existing groups and assignments");
 
       // Create new groups
       const newGroups: Group[] = [];
@@ -151,7 +166,7 @@ export default function CompetitionGroupsPage({
           .from("competition_groups")
           .insert({
             competition_id: competitionId,
-            group_name: `Group ${String.fromCharCode(65 + i)}`,
+            group_name: `${color.name.charAt(0).toUpperCase() + color.name.slice(1)} Team`,
             color_hex: color.hex,
             color_name: color.name,
             sort_order: i,
@@ -163,31 +178,22 @@ export default function CompetitionGroupsPage({
         if (group) newGroups.push(group);
       }
 
-      // Assign students evenly
-      const assignments: any[] = [];
-      registeredStudents.forEach((student, index) => {
-        const groupIndex = index % newGroups.length;
-        assignments.push({
-          competition_id: competitionId,
-          student_id: student.id,
-          group_id: newGroups[groupIndex].id,
-        });
-      });
+      // Verify all groups were created
+      if (!newGroups || newGroups.length !== numGroups) {
+        throw new Error(`Expected ${numGroups} groups, created ${newGroups?.length || 0}`);
+      }
+      console.log(`✓ Created ${newGroups.length} groups`);
 
-      const { error: assignError } = await supabase
-        .from("group_assignments")
-        .insert(assignments);
-
-      if (assignError) throw assignError;
+      setGroups(newGroups.map((g) => ({ ...g, students: [] })));
+      setSelectedStudents(new Set());
+      setSelectedGroupForAssignment("");
 
       toast({
         title: "Success",
-        description: `Created ${numGroups} groups and assigned ${registeredStudents.length} students`,
+        description: `Created ${numGroups} teams. Now select students and assign them!`,
       });
-
-      await fetchData();
     } catch (error) {
-      console.error("Error:", error);
+      console.error("❌ Error creating groups:", error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to create groups",
@@ -196,41 +202,98 @@ export default function CompetitionGroupsPage({
     }
   };
 
-  const assignStudentToGroup = async (studentId: string, groupId: string) => {
+  const bulkAssignStudents = async () => {
+    if (selectedStudents.size === 0) {
+      toast({
+        title: "No students selected",
+        description: "Select at least one student to assign",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedGroupForAssignment) {
+      toast({
+        title: "No group selected",
+        description: "Select a team to assign students to",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      // Check if already assigned
-      const { data: existing } = await supabase
-        .from("group_assignments")
-        .select("id")
-        .eq("student_id", studentId)
-        .eq("competition_id", competitionId)
-        .single();
+      const assignments = Array.from(selectedStudents).map((studentId) => ({
+        competition_id: competitionId,
+        student_id: studentId,
+        group_id: selectedGroupForAssignment,
+      }));
 
-      if (existing) {
-        // Update
-        await supabase
-          .from("group_assignments")
-          .update({ group_id: groupId })
-          .eq("id", existing.id);
-      } else {
-        // Insert
-        await supabase.from("group_assignments").insert({
-          competition_id: competitionId,
-          student_id: studentId,
-          group_id: groupId,
-        });
-      }
+      // Upsert assignments (will update if already exists)
+      const { error: assignError } = await supabase.from("group_assignments").upsert(assignments, {
+        onConflict: "student_id,competition_id",
+      });
 
-      toast({ title: "Success", description: "Student assigned to group" });
+      if (assignError) throw assignError;
+
+      toast({
+        title: "Success",
+        description: `Assigned ${selectedStudents.size} student(s) to team`,
+      });
+
+      setSelectedStudents(new Set());
+      setSelectedGroupForAssignment("");
       await fetchData();
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error assigning students:", error);
       toast({
         title: "Error",
-        description: "Failed to assign student",
+        description: "Failed to assign students",
         variant: "destructive",
       });
     }
+  };
+
+  const removeStudentFromGroup = async (studentId: string) => {
+    try {
+      const { error } = await supabase
+        .from("group_assignments")
+        .delete()
+        .eq("student_id", studentId)
+        .eq("competition_id", competitionId);
+
+      if (error) throw error;
+
+      toast({ title: "Success", description: "Student removed from team" });
+      await fetchData();
+    } catch (error) {
+      console.error("Error removing student:", error);
+      toast({
+        title: "Error",
+        description: "Failed to remove student",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleStudentSelection = (studentId: string) => {
+    const newSelected = new Set(selectedStudents);
+    if (newSelected.has(studentId)) {
+      newSelected.delete(studentId);
+    } else {
+      newSelected.add(studentId);
+    }
+    setSelectedStudents(newSelected);
+  };
+
+  const selectAllUnassigned = () => {
+    const unassignedIds = new Set(
+      unassignedStudents.map((s) => s.id)
+    );
+    setSelectedStudents(unassignedIds);
+  };
+
+  const clearSelection = () => {
+    setSelectedStudents(new Set());
   };
 
   if (loading) {
@@ -254,25 +317,25 @@ export default function CompetitionGroupsPage({
         </Link>
 
         <h1 className="text-3xl font-bold text-gray-900">
-          {competition?.name} - Groups
+          {competition?.name} - Group Assignment
         </h1>
         <p className="text-gray-500 mt-2">
-          {registeredStudents.length} students registered
+          {registeredStudents.length} students registered • {unassignedStudents.length} unassigned
         </p>
       </div>
 
-      {/* Auto-create groups section */}
+      {/* Create Groups Section */}
       {groups.length === 0 && (
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Create Groups Automatically</CardTitle>
+            <CardTitle>Create Teams</CardTitle>
             <CardDescription>
-              Evenly distribute {registeredStudents.length} students
+              Create teams first, then select and assign students
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex gap-4 items-center">
+          <CardContent className="flex gap-4 items-center flex-wrap">
             <div className="flex items-center gap-2">
-              <label className="font-medium">Number of groups:</label>
+              <label className="font-medium">Number of teams:</label>
               <Input
                 type="number"
                 min="1"
@@ -284,108 +347,196 @@ export default function CompetitionGroupsPage({
             </div>
             <Button onClick={createGroupsAutomatically} className="gap-2">
               <Plus className="h-4 w-4" />
-              Create Groups
+              Create Teams
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* Groups Grid */}
+      {/* Main Assignment Interface */}
       {groups.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {groups.map((group) => (
-            <Card key={group.id}>
-              <CardHeader style={{ borderTopColor: group.color_hex, borderTopWidth: "4px" }}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-4 h-4 rounded"
-                      style={{ backgroundColor: group.color_hex }}
-                    />
-                    <CardTitle>{group.group_name}</CardTitle>
-                    <Badge variant="secondary">{group.students.length} students</Badge>
-                  </div>
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left: Student Selection Panel */}
+          <div className="lg:col-span-1">
+            <Card className="sticky top-8">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Unassigned Students
+                </CardTitle>
+                <CardDescription>
+                  {unassignedStudents.length} students to assign
+                </CardDescription>
               </CardHeader>
-
-              <CardContent>
-                <div className="space-y-2">
-                  {group.students.length === 0 ? (
-                    <p className="text-gray-500 text-sm py-4">No students assigned</p>
-                  ) : (
-                    group.students.map((student) => (
-                      <div
-                        key={student.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded border border-gray-200"
-                      >
-                        <div>
-                          <p className="font-medium">
-                            {student.first_name} {student.last_name}
-                          </p>
-                          <p className="text-xs text-gray-500">Grade {student.grade}</p>
-                        </div>
+              <CardContent className="space-y-3">
+                {unassignedStudents.length === 0 ? (
+                  <p className="text-gray-500 text-sm py-4">All students assigned! ✅</p>
+                ) : (
+                  <>
+                    {/* Selection Info */}
+                    {selectedStudents.size > 0 && (
+                      <div className="p-3 bg-blue-50 rounded border border-blue-200">
+                        <p className="text-sm font-medium text-blue-900">
+                          {selectedStudents.size} student{selectedStudents.size !== 1 ? "s" : ""} selected
+                        </p>
                       </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                    )}
 
-      {/* Unassigned students */}
-      {unassignedStudents.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-blue-500" />
-              Unassigned Students ({unassignedStudents.length})
-            </CardTitle>
-            <CardDescription>
-              {groups.length === 0
-                ? "Create groups first"
-                : "Click a group button to assign"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {groups.length === 0 ? (
-              <p className="text-gray-500">Create groups to assign students</p>
-            ) : (
-              <div className="space-y-3">
-                {unassignedStudents.map((student) => (
-                  <div
-                    key={student.id}
-                    className="p-4 bg-gray-50 rounded border border-gray-200 flex items-center justify-between"
-                  >
-                    <div>
-                      <p className="font-medium">
-                        {student.first_name} {student.last_name}
-                      </p>
-                      <p className="text-xs text-gray-500">Grade {student.grade}</p>
-                    </div>
-                    <div className="flex gap-2 flex-wrap">
-                      {groups.map((group) => (
-                        <Button
-                          key={group.id}
-                          size="sm"
-                          onClick={() => assignStudentToGroup(student.id, group.id)}
-                          style={{
-                            backgroundColor: group.color_hex,
-                            color: "white",
-                          }}
-                          className="hover:opacity-80"
+                    {/* Student List */}
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {unassignedStudents.map((student) => (
+                        <div
+                          key={student.id}
+                          onClick={() => toggleStudentSelection(student.id)}
+                          className={`p-3 rounded border-2 cursor-pointer transition-all ${
+                            selectedStudents.has(student.id)
+                              ? "bg-blue-50 border-blue-400"
+                              : "bg-gray-50 border-gray-200 hover:border-gray-300"
+                          }`}
                         >
-                          {group.group_name}
-                        </Button>
+                          <div className="flex items-start gap-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedStudents.has(student.id)}
+                              onChange={() => {}}
+                              className="mt-1"
+                            />
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">
+                                {student.first_name} {student.last_name}
+                              </p>
+                              <p className="text-xs text-gray-500">Grade {student.grade}</p>
+                            </div>
+                          </div>
+                        </div>
                       ))}
                     </div>
+
+                    {/* Quick Actions */}
+                    <div className="flex gap-2 pt-2 border-t">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={selectAllUnassigned}
+                        className="flex-1"
+                      >
+                        Select All
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={clearSelection}
+                        className="flex-1"
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right: Team Assignment */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Bulk Assignment Card */}
+            {selectedStudents.size > 0 && (
+              <Card className="border-2 border-blue-300 bg-blue-50">
+                <CardHeader>
+                  <CardTitle className="text-base">Assign to Team</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {groups.map((group) => (
+                      <Button
+                        key={group.id}
+                        onClick={() => setSelectedGroupForAssignment(group.id)}
+                        variant={selectedGroupForAssignment === group.id ? "default" : "outline"}
+                        style={
+                          selectedGroupForAssignment === group.id
+                            ? { backgroundColor: group.color_hex }
+                            : {}
+                        }
+                        className="justify-start"
+                      >
+                        <div
+                          className="w-3 h-3 rounded-full mr-2"
+                          style={{ backgroundColor: group.color_hex }}
+                        />
+                        {group.group_name}
+                      </Button>
+                    ))}
                   </div>
-                ))}
-              </div>
+                  <Button
+                    onClick={bulkAssignStudents}
+                    disabled={!selectedGroupForAssignment}
+                    className="w-full bg-green-600 hover:bg-green-700"
+                  >
+                    <Check className="h-4 w-4 mr-2" />
+                    Assign {selectedStudents.size} Student{selectedStudents.size !== 1 ? "s" : ""} to{" "}
+                    {groups.find((g) => g.id === selectedGroupForAssignment)?.group_name || "Team"}
+                  </Button>
+                </CardContent>
+              </Card>
             )}
-          </CardContent>
-        </Card>
+
+            {/* Team Panels */}
+            <div className="grid grid-cols-1 gap-4">
+              {groups.map((group) => (
+                <Card key={group.id}>
+                  <CardHeader style={{ borderLeftColor: group.color_hex, borderLeftWidth: "4px" }}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-5 h-5 rounded"
+                          style={{ backgroundColor: group.color_hex }}
+                        />
+                        <CardTitle>{group.group_name}</CardTitle>
+                        <Badge variant="secondary" className="text-lg">
+                          {group.students.length}
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent>
+                    {group.students.length === 0 ? (
+                      <p className="text-gray-500 text-sm py-4">No students assigned yet</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {group.students.map((student) => (
+                          <div
+                            key={student.id}
+                            className="flex items-center justify-between p-3 rounded border-2"
+                            style={{
+                              backgroundColor: group.color_hex + "15",
+                              borderColor: group.color_hex + "40",
+                            }}
+                          >
+                            <div>
+                              <p className="font-medium">
+                                {student.first_name} {student.last_name}
+                              </p>
+                              <p className="text-xs text-gray-500">Grade {student.grade}</p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => removeStudentFromGroup(student.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

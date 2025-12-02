@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { use } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,6 +69,7 @@ export default function CompetitionLivePage({
   const [currentAttempt, setCurrentAttempt] = useState(1);
   const [inputValue, setInputValue] = useState("");
   const [isDNF, setIsDNF] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [studentProgress, setStudentProgress] = useState<Map<string, number>>(new Map());
   const [liveResults, setLiveResults] = useState<Map<string, LiveResult>>(new Map());
 
@@ -81,6 +82,13 @@ export default function CompetitionLivePage({
   const [isCompleting, setIsCompleting] = useState(false);
   const [advancementResults, setAdvancementResults] = useState<any>(null);
   const [penalty, setPenalty] = useState(0); // 0 = none, 2 = +2 seconds
+  const [shouldFilterAdvancing, setShouldFilterAdvancing] = useState(false); // Filter to show only advancing students
+  const [roundComplete, setRoundComplete] = useState(false);
+  const [roundCompletionStats, setRoundCompletionStats] = useState({
+    completed: 0,
+    total: 0,
+    percentage: 0,
+  });
 
   // Load persisted live state on mount AND when competition changes
   useEffect(() => {
@@ -114,9 +122,9 @@ export default function CompetitionLivePage({
 
   useEffect(() => {
     if (selectedRound) {
-      fetchRoundStudents();
+      fetchRoundStudents(shouldFilterAdvancing);
     }
-  }, [selectedRound]);
+  }, [selectedRound, shouldFilterAdvancing]);
 
   useEffect(() => {
     if (selectedRound && selectedGroup) {
@@ -134,7 +142,8 @@ export default function CompetitionLivePage({
 
       // Get student's current progress and set attempt to next one
       const progress = studentProgress.get(selectedStudent) || 0;
-      const nextAttempt = Math.min(progress + 1, 5);
+      // Allow showing attempt 6+ to indicate all 5 attempts are done
+      const nextAttempt = progress + 1;
       setCurrentAttempt(nextAttempt);
     }
   }, [selectedStudent, studentProgress]);
@@ -288,13 +297,49 @@ export default function CompetitionLivePage({
     }
   };
 
-  const fetchRoundStudents = async () => {
+  const fetchRoundStudents = async (filterAdvancing: boolean = false) => {
     try {
+      let studentIds: string[] = [];
+
+      // If filtering, fetch only students who advanced from previous round
+      if (filterAdvancing && selectedRound) {
+        // Get current round and find previous round
+        const { data: allRounds } = await supabase
+          .from("rounds")
+          .select("*")
+          .eq("competition_event_id", selectedEvent)
+          .order("round_number");
+
+        const currentRound = allRounds?.find((r) => r.id === selectedRound);
+        const prevRound = allRounds?.find(
+          (r) => r.round_number === (currentRound?.round_number || 0) - 1
+        );
+
+        if (prevRound) {
+          // Fetch advancing students from previous round
+          const { data: advancingData } = await supabase
+            .from("final_scores")
+            .select("student_id")
+            .eq("round_id", prevRound.id)
+            .eq("advancement_status", "advancing");
+
+          studentIds = advancingData?.map((d: any) => d.student_id) || [];
+          console.log(`Filtering: ${studentIds.length} students advancing from round ${prevRound.round_number}`);
+        }
+      }
+
       // Fetch all students registered for this competition
-      const { data: registrationsData } = await supabase
+      let query = supabase
         .from("registrations")
         .select("*, students(id, first_name, last_name, grade)")
         .eq("competition_id", competitionId);
+
+      // Apply filter if advancing students were fetched
+      if (studentIds.length > 0) {
+        query = query.in("student_id", studentIds);
+      }
+
+      const { data: registrationsData } = await query;
 
       if (!registrationsData) return;
 
@@ -415,6 +460,27 @@ export default function CompetitionLivePage({
       });
 
       setStudentProgress(progressMap);
+
+      // Calculate completion stats
+      const completedStudents = groupStudents.filter(
+        (student) => (progressMap.get(student.id) || 0) >= 5
+      ).length;
+
+      const totalStudents = groupStudents.length;
+      const percentage = totalStudents > 0
+        ? Math.round((completedStudents / totalStudents) * 100)
+        : 0;
+
+      const isComplete = completedStudents === totalStudents && totalStudents > 0;
+
+      setRoundComplete(isComplete);
+      setRoundCompletionStats({
+        completed: completedStudents,
+        total: totalStudents,
+        percentage,
+      });
+
+      console.log(`Round progress: ${completedStudents}/${totalStudents} (${percentage}%)`);
     } catch (error) {
       console.error("Error fetching student progress:", error);
     }
@@ -552,8 +618,9 @@ export default function CompetitionLivePage({
         return;
       }
 
-      // Move to next round
+      // Move to next round and filter to only advancing students
       setSelectedRound(nextRound.id);
+      setShouldFilterAdvancing(true);  // Enable filtering to show only advancing students
       setAdvancementResults(null);
       setInputValue("");
       setIsDNF(false);
@@ -649,6 +716,10 @@ export default function CompetitionLivePage({
   };
 
   const handleTimeEntry = async (studentId: string) => {
+    // Get the ACTUAL current value from the DOM input element, not from state
+    // This fixes the race condition where React state updates are async
+    const currentInputValue = inputRef.current?.value || inputValue;
+
     if (!isLive) {
       toast({
         title: "Not Live",
@@ -668,11 +739,11 @@ export default function CompetitionLivePage({
     }
 
     if (!isDNF) {
-      const timeMs = parseTimeInput(inputValue);
+      const timeMs = parseTimeInput(currentInputValue);
       if (timeMs === null || timeMs === 0) {
         toast({
           title: "Invalid time",
-          description: "Please enter a valid time",
+          description: `Please enter a valid time. Entered: "${currentInputValue}"`,
           variant: "destructive",
         });
         return;
@@ -680,7 +751,7 @@ export default function CompetitionLivePage({
     }
 
     try {
-      const timeMs = isDNF ? null : parseTimeInput(inputValue);
+      const timeMs = isDNF ? null : parseTimeInput(currentInputValue);
 
       // Save to database with penalty_seconds field (using upsert to handle updates)
       const { data, error } = await supabase.from("results").upsert({
@@ -709,7 +780,10 @@ export default function CompetitionLivePage({
           : `Recorded ${formatTime(timeMs!)}${penalty === 2 ? ' (+2s penalty)' : ''} for attempt ${currentAttempt}`,
       });
 
-      // Clear input, DNF, and penalty
+      // Clear input, DNF, and penalty (clear both state and ref to ensure clean state)
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
       setInputValue("");
       setIsDNF(false);
       setPenalty(0);
@@ -728,16 +802,14 @@ export default function CompetitionLivePage({
       // Auto-calculate and save rankings
       await updateStudentRanking(studentId, selectedRound, selectedEvent);
 
-      // Update progress
-      const currentProgress = studentProgress.get(studentId) || 0;
-      const newProgress = Math.max(currentProgress, currentAttempt);
+      // Update progress locally first (will be confirmed by fetchStudentProgress)
+      const newAttempt = currentAttempt + 1;
 
-      if (newProgress < 5) {
+      if (currentAttempt < 5) {
         // Move to next attempt for same student
-        setCurrentAttempt(newProgress + 1);
-        setStudentProgress(new Map(studentProgress.set(studentId, newProgress)));
-      } else {
-        // Student completed all 5 attempts, move to next student
+        setCurrentAttempt(newAttempt);
+      } else if (currentAttempt === 5) {
+        // Just completed attempt 5, move to next student or show completion
         const selectedGroupData = groups.find((g) => g.id === selectedGroup);
         const groupStudents = selectedGroupData?.students || [];
         const currentIndex = groupStudents.findIndex((s) => s.id === studentId);
@@ -745,8 +817,7 @@ export default function CompetitionLivePage({
         if (currentIndex < groupStudents.length - 1) {
           const nextStudent = groupStudents[currentIndex + 1];
           setSelectedStudent(nextStudent.id);
-          const nextProgress = studentProgress.get(nextStudent.id) || 0;
-          setCurrentAttempt(nextProgress + 1);
+          // currentAttempt will be set by the useEffect that watches selectedStudent
         } else {
           // Last student in group completed
           toast({
@@ -756,6 +827,9 @@ export default function CompetitionLivePage({
           setCurrentAttempt(1);
         }
       }
+
+      // Refresh progress stats to update the progress bar and completion status
+      await fetchStudentProgress();
     } catch (error) {
       console.error("Error saving time:", error);
       toast({
@@ -852,7 +926,10 @@ export default function CompetitionLivePage({
             <CardContent>
               <select
                 value={selectedRound}
-                onChange={(e) => setSelectedRound(e.target.value)}
+                onChange={(e) => {
+                  setSelectedRound(e.target.value);
+                  setShouldFilterAdvancing(false);  // Reset filter when manually selecting
+                }}
                 className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 focus:outline-none"
               >
                 <option value="">Select Round...</option>
@@ -970,11 +1047,13 @@ export default function CompetitionLivePage({
               <div className="space-y-2">
                 <label className="text-white font-medium block">Enter Time</label>
                 <input
+                  ref={inputRef}
                   type="text"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={(e) => {
                     if (e.key === "Enter" && selectedStudent) {
+                      e.preventDefault();
                       handleTimeEntry(selectedStudent);
                     }
                   }}
@@ -1023,7 +1102,7 @@ export default function CompetitionLivePage({
                 <Button
                   onClick={() => handleTimeEntry(selectedStudent)}
                   className="flex-1 h-12 text-lg gap-2"
-                  disabled={!selectedStudent || !selectedRound || (!inputValue && !isDNF) || !isLive}
+                  disabled={!selectedStudent || !selectedRound || (!inputValue && !isDNF) || !isLive || currentAttempt > 5}
                 >
                   <CheckCircle2 className="h-5 w-5" />
                   Record Attempt
@@ -1065,6 +1144,48 @@ export default function CompetitionLivePage({
             </div>
           </CardContent>
         </Card>
+
+        {/* Round Progress Indicator */}
+        {selectedGroup && (
+          <Card className={`mt-8 ${roundComplete ? 'bg-green-900/20 border-green-600/50' : 'bg-slate-800 border-slate-700'}`}>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className={`h-5 w-5 ${roundComplete ? 'text-green-400' : 'text-slate-400'}`} />
+                  <CardTitle className="text-white">
+                    {roundComplete ? '✅ Group Complete!' : 'Group Progress'}
+                  </CardTitle>
+                </div>
+                <Badge variant={roundComplete ? "default" : "secondary"} className={roundComplete ? "bg-green-600" : ""}>
+                  {roundCompletionStats.completed}/{roundCompletionStats.total} Students
+                </Badge>
+              </div>
+              <CardDescription>
+                {roundComplete
+                  ? 'All students have completed their 5 attempts. Ready to complete round.'
+                  : `${roundCompletionStats.percentage}% complete`
+                }
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="w-full bg-slate-700 rounded-full h-4">
+                <div
+                  className={`h-full transition-all duration-300 ${roundComplete ? 'bg-green-500' : 'bg-blue-500'}`}
+                  style={{ width: `${roundCompletionStats.percentage}%` }}
+                />
+              </div>
+
+              {roundComplete && (
+                <Button
+                  onClick={() => setShowAdvancementConfig(true)}
+                  className="w-full mt-4 bg-green-600 hover:bg-green-700"
+                >
+                  🏁 Proceed to Complete Round
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Complete Round Section */}
         <Card className="mt-8 bg-slate-800 border-slate-700">

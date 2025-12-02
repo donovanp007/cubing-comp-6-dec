@@ -17,6 +17,9 @@ import { ArrowLeft, Eye, Trophy, Users, RefreshCw, Share2, Copy, Check } from "l
 import Link from "next/link";
 import { formatTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { CompetitionSummaryCards } from "@/components/competition-summary-cards";
+import { ChampionshipHighlights } from "@/components/championship-highlights";
+import { FastestByGradeGrid } from "@/components/fastest-by-grade-grid";
 
 interface Student {
   id: string;
@@ -42,6 +45,7 @@ interface Result {
   advancement_status?: string;
   attempts: Array<{ time: number | null; is_dnf: boolean }>;
   is_record_breaker?: boolean;
+  is_personal_best?: boolean;
 }
 
 interface Competition {
@@ -72,6 +76,9 @@ export default function CompetitionLivePublicPage({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [overallWinner, setOverallWinner] = useState<any>(null);
+  const [fastestGirl, setFastestGirl] = useState<any>(null);
+  const [fastestByGrade, setFastestByGrade] = useState<any[]>([]);
 
   // Load persisted selections from sessionStorage on mount
   useEffect(() => {
@@ -179,6 +186,59 @@ export default function CompetitionLivePublicPage({
         setGroups(groupsData || []);
       }
 
+      // Fetch championship highlights and fastest by grade
+      const { data: allFinalScores } = await supabase
+        .from("final_scores")
+        .select(`
+          best_time_milliseconds,
+          students(id, first_name, last_name, grade, school, gender),
+          rounds(competition_event_id)
+        `)
+        .in("rounds.competition_event_id", eventsData?.map((e: any) => e.id) || [])
+        .not("best_time_milliseconds", "is", null)
+        .order("best_time_milliseconds", { ascending: true });
+
+      if (allFinalScores && allFinalScores.length > 0) {
+        // Overall winner (fastest across all events)
+        const winner = allFinalScores[0];
+        setOverallWinner(winner?.students ? {
+          id: winner.students.id,
+          first_name: winner.students.first_name,
+          last_name: winner.students.last_name,
+          grade: winner.students.grade,
+          school: winner.students.school,
+          best_time_milliseconds: winner.best_time_milliseconds,
+        } : null);
+
+        // Fastest girl (fastest female competitor)
+        const girl = allFinalScores.find((f: any) => f.students?.gender === "female");
+        setFastestGirl(girl?.students ? {
+          id: girl.students.id,
+          first_name: girl.students.first_name,
+          last_name: girl.students.last_name,
+          grade: girl.students.grade,
+          school: girl.students.school,
+          best_time_milliseconds: girl.best_time_milliseconds,
+        } : null);
+
+        // Fastest by grade (Grade 1-7)
+        const gradeData = [1, 2, 3, 4, 5, 6, 7].map((grade) => {
+          const gradeKey = `Grade ${grade}`;
+          const fastest = allFinalScores.find((f: any) => f.students?.grade === gradeKey);
+          return {
+            grade,
+            student: fastest?.students ? {
+              id: fastest.students.id,
+              first_name: fastest.students.first_name,
+              last_name: fastest.students.last_name,
+              school: fastest.students.school,
+              best_time_milliseconds: fastest.best_time_milliseconds,
+            } : null,
+          };
+        });
+        setFastestByGrade(gradeData);
+      }
+
       // Fetch results if round selected - get live data from results table
       if (selectedRound) {
         // Fetch all registrations for this competition
@@ -204,6 +264,13 @@ export default function CompetitionLivePublicPage({
             .eq("competition_id", competitionId)
             .in("student_id", studentIds);
 
+          // Get personal bests for the current event
+          const { data: personalBestsData } = await supabase
+            .from("personal_bests")
+            .select("student_id, event_type_id, best_single_ms")
+            .in("student_id", studentIds)
+            .eq("event_type_id", selectedEvent);
+
           // Create lookup maps
           const assignmentMap = new Map(
             (assignments || []).map((a: any) => [
@@ -211,6 +278,11 @@ export default function CompetitionLivePublicPage({
               a.competition_groups?.id || "",
             ])
           );
+
+          const pbMap = new Map<string, number>();
+          personalBestsData?.forEach((pb: any) => {
+            pbMap.set(pb.student_id, pb.best_single_ms);
+          });
 
           // Build a map of student times and all attempts
           const studentResultsMap = new Map<
@@ -290,6 +362,7 @@ export default function CompetitionLivePublicPage({
                 advancement_status: undefined,
                 attempts: allAttempts,
                 is_record_breaker: !!(recordTime && stats.bestTime && stats.bestTime === recordTime && stats.bestTime > 0),
+                is_personal_best: !!(pbMap.get(studentId) && stats.bestTime && stats.bestTime < pbMap.get(studentId)),
               };
             })
             .sort((a, b) => {
@@ -475,6 +548,31 @@ export default function CompetitionLivePublicPage({
           </CardContent>
         </Card>
 
+        {/* Competition Summary Cards */}
+        <div className="text-slate-300 mb-8">
+          <CompetitionSummaryCards
+            summary={{
+              date: competition?.competition_date,
+              location: competition?.location,
+              totalEvents: events.length,
+              totalParticipants: results.length,
+            }}
+          />
+        </div>
+
+        {/* Championship Highlights */}
+        <div className="mb-8">
+          <ChampionshipHighlights
+            overallWinner={overallWinner}
+            fastestGirl={fastestGirl}
+          />
+        </div>
+
+        {/* Fastest by Grade Grid */}
+        <div className="mb-8 text-slate-300">
+          <FastestByGradeGrid data={fastestByGrade} />
+        </div>
+
         {/* Controls */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           {/* Event Select */}
@@ -584,6 +682,9 @@ export default function CompetitionLivePublicPage({
                           {result.student_name}
                           {result.is_record_breaker && (
                             <Badge className="bg-yellow-600 animate-pulse">🏆 RECORD</Badge>
+                          )}
+                          {result.is_personal_best && (
+                            <Badge className="bg-blue-600 animate-pulse">⭐ PB</Badge>
                           )}
                         </div>
                       </TableCell>

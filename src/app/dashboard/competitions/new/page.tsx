@@ -32,6 +32,7 @@ export default function CreateCompetitionPage() {
     competition_time: "",
     max_participants: "",
     is_public: true,
+    competition_type: "major",
   });
   const router = useRouter();
   const { toast } = useToast();
@@ -77,6 +78,7 @@ export default function CreateCompetitionPage() {
           ? parseInt(formData.max_participants)
           : null,
         is_public: formData.is_public,
+        competition_type: formData.competition_type,
         status: "upcoming",
       })
       .select()
@@ -249,6 +251,32 @@ export default function CreateCompetitionPage() {
                 }
                 placeholder="Leave empty for unlimited"
               />
+            </div>
+
+            {/* Competition Type */}
+            <div className="space-y-2">
+              <Label htmlFor="type">Competition Type</Label>
+              <Select
+                value={formData.competition_type}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, competition_type: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="major">
+                    Major Competition (included in rankings)
+                  </SelectItem>
+                  <SelectItem value="termly_league">
+                    Termly League (excluded from rankings)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500 mt-1">
+                Major competitions appear in the League Rankings. Termly leagues are practice events.
+              </p>
             </div>
 
             {/* Events Selection */}
