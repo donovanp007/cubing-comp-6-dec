@@ -37,6 +37,7 @@ interface Round {
   competition_event_id: string;
   round_number: number;
   round_name: string;
+  round_type: "round" | "semifinal" | "final";
   cutoff_percentage?: number;
   cutoff_count?: number;
   advancement_type: "percentage" | "count" | "time";
@@ -48,6 +49,12 @@ const ADVANCEMENT_OPTIONS = [
   { value: "percentage", label: "Top Percentage", example: "Top 50% advance" },
   { value: "count", label: "Top Count", example: "Top 8 advance" },
   { value: "time", label: "Time-Based", example: "Under 30s advance" },
+];
+
+const ROUND_TYPE_OPTIONS = [
+  { value: "round", label: "Regular Round", icon: "🔵" },
+  { value: "semifinal", label: "Semifinal", icon: "⭐" },
+  { value: "final", label: "Final", icon: "🏆" },
 ];
 
 export default function RoundConfigurationPage({
@@ -66,6 +73,8 @@ export default function RoundConfigurationPage({
   const [expandedEvent, setExpandedEvent] = useState<string>("");
   const [editingRound, setEditingRound] = useState<Round | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [newRoundType, setNewRoundType] = useState<"round" | "semifinal" | "final">("round");
+  const [addingRoundEventId, setAddingRoundEventId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -124,17 +133,25 @@ export default function RoundConfigurationPage({
     }
   };
 
-  const addRound = async (eventId: string) => {
+  const addRound = async (eventId: string, roundType: "round" | "semifinal" | "final" = "round") => {
     try {
       const eventRounds = rounds.get(eventId) || [];
       const nextRoundNumber = eventRounds.length + 1;
+
+      let roundName = `Round ${nextRoundNumber}`;
+      if (roundType === "semifinal") {
+        roundName = "Semifinal";
+      } else if (roundType === "final") {
+        roundName = "Final";
+      }
 
       const { data: newRound, error } = await supabase
         .from("rounds")
         .insert({
           competition_event_id: eventId,
           round_number: nextRoundNumber,
-          round_name: `Round ${nextRoundNumber}`,
+          round_name: roundName,
+          round_type: roundType,
           advancement_type: "percentage",
           cutoff_percentage: 50,
           status: "pending",
@@ -151,8 +168,11 @@ export default function RoundConfigurationPage({
 
       toast({
         title: "Round Created",
-        description: `Round ${nextRoundNumber} added`,
+        description: `${roundName} added`,
       });
+
+      setAddingRoundEventId(null);
+      setNewRoundType("round");
     } catch (error) {
       console.error("Error adding round:", error);
       toast({
@@ -169,6 +189,7 @@ export default function RoundConfigurationPage({
         .from("rounds")
         .update({
           round_name: round.round_name,
+          round_type: round.round_type,
           advancement_type: round.advancement_type,
           cutoff_percentage: round.cutoff_percentage,
           cutoff_count: round.cutoff_count,
@@ -352,7 +373,7 @@ export default function RoundConfigurationPage({
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          addRound(event.id);
+                          setAddingRoundEventId(event.id);
                         }}
                         className="gap-2"
                       >
@@ -383,12 +404,26 @@ export default function RoundConfigurationPage({
                                 />
                               ) : (
                                 <div className="space-y-3">
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <h4 className="text-white font-semibold">
-                                        {round.round_name}
-                                      </h4>
-                                      <p className="text-slate-400 text-sm mt-1">
+                                  <div className="flex items-start justify-between gap-4">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <h4 className="text-white font-semibold text-lg">
+                                          {ROUND_TYPE_OPTIONS.find(o => o.value === round.round_type)?.icon}{" "}
+                                          {round.round_name}
+                                        </h4>
+                                        <Badge
+                                          className={
+                                            round.round_type === "final"
+                                              ? "bg-red-600 hover:bg-red-700"
+                                              : round.round_type === "semifinal"
+                                              ? "bg-orange-600 hover:bg-orange-700"
+                                              : "bg-blue-600 hover:bg-blue-700"
+                                          }
+                                        >
+                                          {ROUND_TYPE_OPTIONS.find(o => o.value === round.round_type)?.label}
+                                        </Badge>
+                                      </div>
+                                      <p className="text-slate-400 text-sm">
                                         {getAdvancementLabel(round)}
                                       </p>
                                     </div>
@@ -439,6 +474,62 @@ export default function RoundConfigurationPage({
             })
           )}
         </div>
+
+        {/* Round Type Selector Modal */}
+        {addingRoundEventId && (
+          <Card className="bg-slate-800 border-slate-700 mb-8 fixed inset-0 max-w-md mx-auto my-auto z-50">
+            <CardHeader>
+              <CardTitle className="text-white">Select Round Type</CardTitle>
+              <CardDescription className="text-slate-400">
+                Choose the type of round to create
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-3">
+                {ROUND_TYPE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => {
+                      addRound(addingRoundEventId, option.value as any);
+                    }}
+                    className="p-4 bg-slate-700/50 hover:bg-slate-600/50 text-white rounded-lg border border-slate-600 hover:border-slate-500 transition-colors text-left flex items-center gap-3"
+                  >
+                    <span className="text-2xl">{option.icon}</span>
+                    <div>
+                      <p className="font-semibold">{option.label}</p>
+                      <p className="text-xs text-slate-400">
+                        {option.value === "round" && "Regular competition round"}
+                        {option.value === "semifinal" && "Competitors advance to finals"}
+                        {option.value === "final" && "Championship round"}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setAddingRoundEventId(null);
+                  setNewRoundType("round");
+                }}
+                className="w-full"
+              >
+                Cancel
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Backdrop for modal */}
+        {addingRoundEventId && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => {
+              setAddingRoundEventId(null);
+              setNewRoundType("round");
+            }}
+          />
+        )}
 
         {/* Information Card */}
         <Card className="bg-slate-800 border-slate-700">
@@ -514,6 +605,33 @@ function RoundEditForm({
           }
           className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 focus:outline-none"
         />
+      </div>
+
+      <div>
+        <label className="block text-white text-sm font-medium mb-1">
+          Round Type
+        </label>
+        <select
+          value={formData.round_type}
+          onChange={(e) =>
+            setFormData({
+              ...formData,
+              round_type: e.target.value as any,
+            })
+          }
+          className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 focus:outline-none"
+        >
+          {ROUND_TYPE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.icon} {option.label}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-slate-400 mt-1">
+          {formData.round_type === "round" && "Regular competition round"}
+          {formData.round_type === "semifinal" && "Round leading to finals"}
+          {formData.round_type === "final" && "Championship round"}
+        </p>
       </div>
 
       <div>
