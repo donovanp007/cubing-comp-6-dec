@@ -245,14 +245,39 @@ export default function CompetitionLivePublicPage({
         setFastestByGrade(gradeData);
       }
 
-      // Fetch school standings
+      // Fetch school standings using sequential pattern (no nested joins)
       const { data: standings } = await supabase
         .from("school_standings")
-        .select("*, schools(id, name, abbreviation, division, color_hex)")
+        .select("id, school_id, competition_id, total_points, best_time_points, average_time_points, bonus_points, total_students, average_points_per_student, total_pb_count, total_dnf_count, overall_rank, division_rank")
         .eq("competition_id", competitionId)
         .order("total_points", { ascending: false });
 
-      setSchoolStandings(standings || []);
+      // Fetch school details separately
+      let standingsWithSchools: any[] = [];
+      if (standings && standings.length > 0) {
+        const schoolIds = [...new Set(standings.map((s: any) => s.school_id).filter(Boolean))];
+
+        if (schoolIds.length > 0) {
+          const { data: schoolsData } = await supabase
+            .from("schools")
+            .select("id, name, abbreviation, division, color_hex")
+            .in("id", schoolIds);
+
+          const schoolsMap = new Map();
+          if (schoolsData) {
+            schoolsData.forEach((school: any) => {
+              schoolsMap.set(school.id, school);
+            });
+          }
+
+          standingsWithSchools = standings.map((standing: any) => ({
+            ...standing,
+            schools: schoolsMap.get(standing.school_id) || { name: "Unknown School" }
+          }));
+        }
+      }
+
+      setSchoolStandings(standingsWithSchools || []);
 
       // Fetch completed rounds with points
       const { data: completedRounds } = await supabase
@@ -884,18 +909,54 @@ export default function CompetitionLivePublicPage({
             </div>
 
             <div>
-              <h3 className="text-white font-bold text-lg mb-4">Overall Standings</h3>
-              {schoolStandings.length === 0 ? (
+              <h3 className="text-white font-bold text-lg mb-4">Overall Student Rankings (All Times)</h3>
+              {results.length === 0 ? (
                 <Card className="bg-slate-800 border-slate-700">
                   <CardContent className="p-8 text-center text-slate-400">
                     <Trophy className="h-12 w-12 mx-auto text-slate-600 mb-3" />
-                    <p>No competition data yet</p>
+                    <p>No results yet</p>
                   </CardContent>
                 </Card>
               ) : (
                 <Card className="bg-slate-800 border-slate-700">
-                  <CardContent className="p-4 text-slate-400 text-sm">
-                    Overall standings will be available when all rounds complete. School standings are displayed in the "School Leaderboard" tab.
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-b border-slate-700">
+                            <TableHead className="text-white w-12">Rank</TableHead>
+                            <TableHead className="text-white">Student</TableHead>
+                            <TableHead className="text-white text-right">Best Time</TableHead>
+                            <TableHead className="text-white text-right">Best Avg</TableHead>
+                            <TableHead className="text-white text-right">Competitions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {results
+                            .sort((a, b) => {
+                              const timeA = a.best_time || Infinity;
+                              const timeB = b.best_time || Infinity;
+                              return timeA - timeB;
+                            })
+                            .slice(0, 20)
+                            .map((student, idx) => (
+                              <TableRow key={student.student_id} className="border-b border-slate-700 hover:bg-slate-700/50">
+                                <TableCell className="text-white font-bold w-12">
+                                  {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`}
+                                </TableCell>
+                                <TableCell className="text-white">{student.student_name}</TableCell>
+                                <TableCell className="text-right font-mono text-green-400">
+                                  {student.best_time ? formatTime(student.best_time) : "—"}
+                                </TableCell>
+                                <TableCell className="text-right font-mono text-blue-400">
+                                  {student.average_time ? formatTime(student.average_time) : "—"}
+                                </TableCell>
+                                <TableCell className="text-right text-slate-300">{student.attempts_completed}</TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </CardContent>
                 </Card>
               )}
