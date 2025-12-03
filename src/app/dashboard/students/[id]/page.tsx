@@ -448,7 +448,7 @@ export default function StudentDetailPage() {
       </div>
 
       {/* Points Breakdown Section */}
-      {pointHistory.length > 0 && (
+      {pointHistory && pointHistory.length > 0 && (
         <>
           {/* Bonus Summary */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
