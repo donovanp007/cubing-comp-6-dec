@@ -12,6 +12,7 @@ import Link from "next/link";
 import { calculateRanking } from "@/lib/utils/ranking";
 import { completeRoundAndCalculateAdvancement, getAdvancementSummary } from "@/lib/utils/apply-advancement";
 import { formatTime as formatTimeMs } from "@/lib/utils/advancement";
+import { calculateAllFinalScoresForRound } from "@/lib/utils/calculate-round-final-scores";
 
 interface Student {
   id: string;
@@ -89,6 +90,8 @@ export default function CompetitionLivePage({
     total: 0,
     percentage: 0,
   });
+  const [isCalculatingScores, setIsCalculatingScores] = useState(false);
+  const [scoresCalculated, setScoresCalculated] = useState(false);
 
   // Load persisted live state on mount AND when competition changes
   useEffect(() => {
@@ -528,6 +531,48 @@ export default function CompetitionLivePage({
     return secs.toFixed(2);
   };
 
+  const handleCalculateFinalScores = async () => {
+    if (!selectedRound || !selectedEvent) {
+      toast({
+        title: "Error",
+        description: "Please select a round and event",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCalculatingScores(true);
+    try {
+      const result = await calculateAllFinalScoresForRound(
+        selectedRound,
+        selectedEvent
+      );
+
+      if (result.success) {
+        setScoresCalculated(true);
+        toast({
+          title: "Final Scores Calculated",
+          description: `Calculated final scores for ${result.calculated} students`,
+        });
+      } else {
+        toast({
+          title: "Calculation Error",
+          description: result.error || "Failed to calculate final scores",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error calculating final scores:", error);
+      toast({
+        title: "Error",
+        description: "Failed to calculate final scores",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCalculatingScores(false);
+    }
+  };
+
   const handleCompleteRound = async () => {
     if (!selectedRound) {
       toast({
@@ -929,6 +974,7 @@ export default function CompetitionLivePage({
                 onChange={(e) => {
                   setSelectedRound(e.target.value);
                   setShouldFilterAdvancing(false);  // Reset filter when manually selecting
+                  setScoresCalculated(false);  // Reset scores calculated flag for new round
                 }}
                 className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-blue-500 focus:outline-none"
               >
@@ -1187,13 +1233,41 @@ export default function CompetitionLivePage({
           </Card>
         )}
 
+        {/* Calculate Final Scores Section */}
+        <Card className="mt-8 bg-slate-800 border-slate-700">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-blue-400" />
+                <CardTitle className="text-white">Step 1: Calculate Final Scores</CardTitle>
+              </div>
+            </div>
+            <CardDescription>
+              {scoresCalculated ? "✅ Final scores calculated" : "Calculate final_scores for all students before completing the round"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={handleCalculateFinalScores}
+              disabled={isCalculatingScores || !selectedRound}
+              className={`w-full ${scoresCalculated ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+              size="lg"
+            >
+              {isCalculatingScores ? "Calculating..." : scoresCalculated ? "✅ Scores Calculated" : "📊 Calculate Final Scores"}
+            </Button>
+            <p className="text-xs text-slate-400 mt-3">
+              This ensures all student times are saved to final_scores before advancing to the next round
+            </p>
+          </CardContent>
+        </Card>
+
         {/* Complete Round Section */}
         <Card className="mt-8 bg-slate-800 border-slate-700">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Flag className="h-5 w-5 text-yellow-400" />
-                <CardTitle className="text-white">Complete Round & Calculate Advancement</CardTitle>
+                <CardTitle className="text-white">Step 2: Complete Round & Calculate Advancement</CardTitle>
               </div>
               <Button
                 onClick={() => setShowAdvancementConfig(!showAdvancementConfig)}
