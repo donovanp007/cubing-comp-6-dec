@@ -161,6 +161,28 @@ export async function completeRoundAndCalculateAdvancement(
   try {
     const supabase = createClient();
 
+    // STEP 0: Calculate final scores if not already done
+    // This ensures final_scores table is populated before we try to read from it
+    console.log("🔹 Step 0: Ensuring final scores are calculated...");
+    const { calculateAllFinalScoresForRound } = await import("./calculate-round-final-scores");
+
+    // Get the event ID from the round first
+    const { data: roundData, error: roundError } = await supabase
+      .from("rounds")
+      .select("competition_event_id")
+      .eq("id", roundId)
+      .single();
+
+    if (!roundError && roundData) {
+      const eventId = (roundData as any).competition_event_id;
+      const calculateResult = await calculateAllFinalScoresForRound(roundId, eventId);
+      if (calculateResult.success) {
+        console.log(`✅ Final scores ensured for round (${calculateResult.calculated} students)`);
+      } else {
+        console.warn(`⚠️  Warning: Could not calculate all final scores: ${calculateResult.error}`);
+      }
+    }
+
     // Fetch all final scores for this round
     const { data: finalScores, error: scoresError } = await supabase
       .from("final_scores")
