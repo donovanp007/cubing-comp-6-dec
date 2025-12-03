@@ -109,10 +109,9 @@ export default function StudentDetailPage() {
         const supabase = createClient();
         const { data: solvesData, error: solvesError } = await supabase
           .from("results")
-          .select("id, time_milliseconds, is_dnf, created_at")
+          .select("id, time_milliseconds, is_dnf")
           .eq("round_id", selectedCompetition.round_id)
           .eq("student_id", studentId)
-          .order("created_at", { ascending: true })
           .limit(5);
 
         console.log(`[Solves] Fetching for round ${selectedCompetition.round_id}, student ${studentId}`);
