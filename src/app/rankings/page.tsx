@@ -1,9 +1,135 @@
+"use client";
+
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trophy, Medal, Users, TrendingUp } from "lucide-react";
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { formatTime } from "@/lib/utils";
+import { TierBadge } from "@/components/tier-badge";
+
+interface StudentRanking {
+  student_id: string;
+  first_name: string;
+  last_name: string;
+  grade: number;
+  school_name: string;
+  total_points: number;
+  best_time?: number | null;
+  best_average?: number | null;
+}
 
 export default function PublicRankingsPage() {
+  const [students, setStudents] = useState<StudentRanking[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchRankings();
+  }, []);
+
+  const fetchRankings = async () => {
+    try {
+      const supabase = createClient();
+
+      // Fetch all students with their total points
+      const { data: studentData } = await supabase
+        .from("students")
+        .select("id, first_name, last_name, grade, schools(name)");
+
+      const studentMap = new Map<string, {
+        first_name: string;
+        last_name: string;
+        grade: number;
+        school_name: string;
+        points: number;
+      }>();
+
+      if (studentData) {
+        for (const student of studentData) {
+          studentMap.set(student.id, {
+            first_name: student.first_name,
+            last_name: student.last_name,
+            grade: student.grade,
+            school_name: student.schools?.name || "Unknown",
+            points: 0,
+          });
+        }
+      }
+
+      // Get all point transactions (no filters)
+      const { data: pointData } = await supabase
+        .from("point_transactions")
+        .select(`
+          student_id,
+          final_points
+        `);
+
+      if (pointData) {
+        for (const point of pointData) {
+          const student = studentMap.get(point.student_id);
+          if (student) {
+            student.points += point.final_points || 0;
+          }
+        }
+      }
+
+      // Get best times from final_scores (no filters)
+      const { data: finalScoresData } = await supabase
+        .from("final_scores")
+        .select(`
+          student_id,
+          best_time_milliseconds,
+          average_time_milliseconds
+        `);
+
+      const careerBestTimes = new Map<string, { best_time?: number; best_average?: number }>();
+
+      if (finalScoresData) {
+        for (const score of finalScoresData) {
+          const existing = careerBestTimes.get(score.student_id) || { best_time: undefined, best_average: undefined };
+
+          if (score.best_time_milliseconds) {
+            existing.best_time = existing.best_time
+              ? Math.min(existing.best_time, score.best_time_milliseconds)
+              : score.best_time_milliseconds;
+          }
+
+          if (score.average_time_milliseconds) {
+            existing.best_average = existing.best_average
+              ? Math.min(existing.best_average, score.average_time_milliseconds)
+              : score.average_time_milliseconds;
+          }
+
+          careerBestTimes.set(score.student_id, existing);
+        }
+      }
+
+      // Combine and sort
+      const rankings: StudentRanking[] = [];
+      for (const [studentId, data] of studentMap.entries()) {
+        const times = careerBestTimes.get(studentId);
+        rankings.push({
+          student_id: studentId,
+          first_name: data.first_name,
+          last_name: data.last_name,
+          grade: data.grade,
+          school_name: data.school_name,
+          total_points: data.points,
+          best_time: times?.best_time,
+          best_average: times?.best_average,
+        });
+      }
+
+      rankings.sort((a, b) => b.total_points - a.total_points);
+      setStudents(rankings);
+    } catch (error) {
+      console.error("Error fetching rankings:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500">
       {/* Navigation */}
@@ -48,8 +174,8 @@ export default function PublicRankingsPage() {
                   <Trophy className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-sm text-white/60">Total Champions</p>
-                  <p className="text-2xl font-bold text-white">-</p>
+                  <p className="text-sm text-white/60">Total Students</p>
+                  <p className="text-2xl font-bold text-white">{students.length}</p>
                 </div>
               </div>
             </CardContent>
@@ -61,8 +187,8 @@ export default function PublicRankingsPage() {
                   <Users className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-sm text-white/60">Active Students</p>
-                  <p className="text-2xl font-bold text-white">-</p>
+                  <p className="text-sm text-white/60">Top Score</p>
+                  <p className="text-2xl font-bold text-white">{students.length > 0 ? students[0].total_points : 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -75,7 +201,9 @@ export default function PublicRankingsPage() {
                 </div>
                 <div>
                   <p className="text-sm text-white/60">Best Time</p>
-                  <p className="text-2xl font-bold text-white">-</p>
+                  <p className="text-2xl font-bold text-white">
+                    {students.length > 0 && students[0].best_time ? formatTime(students[0].best_time) : "—"}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -87,8 +215,12 @@ export default function PublicRankingsPage() {
                   <Medal className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-sm text-white/60">Badges Earned</p>
-                  <p className="text-2xl font-bold text-white">-</p>
+                  <p className="text-sm text-white/60">Avg Points</p>
+                  <p className="text-2xl font-bold text-white">
+                    {students.length > 0
+                      ? Math.round((students.reduce((sum, s) => sum + s.total_points, 0) / students.length) * 10) / 10
+                      : 0}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -102,25 +234,61 @@ export default function PublicRankingsPage() {
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
               <Trophy className="h-5 w-5 text-yellow-400" />
-              Top Performers
+              Student Rankings
             </CardTitle>
             <CardDescription className="text-white/60">
-              Students ranked by best average time
+              Top students by points earned across all competitions
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-12">
-              <Medal className="h-16 w-16 mx-auto text-white/30 mb-4" />
-              <p className="text-white/60 text-lg">No rankings yet</p>
-              <p className="text-white/40 text-sm mt-2">
-                Rankings will appear once students participate in competitions
-              </p>
-              <Link href="/competitions">
-                <Button className="mt-6 bg-white/20 hover:bg-white/30 text-white">
-                  View Competitions
-                </Button>
-              </Link>
-            </div>
+            {loading ? (
+              <div className="text-center py-12">
+                <p className="text-white/60">Loading rankings...</p>
+              </div>
+            ) : students.length === 0 ? (
+              <div className="text-center py-12">
+                <Medal className="h-16 w-16 mx-auto text-white/30 mb-4" />
+                <p className="text-white/60 text-lg">No rankings yet</p>
+                <p className="text-white/40 text-sm mt-2">
+                  Rankings will appear once students participate in competitions
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-white">
+                  <thead>
+                    <tr className="border-b border-white/20">
+                      <th className="text-left py-3 px-2">Rank</th>
+                      <th className="text-left py-3 px-2">Name</th>
+                      <th className="text-left py-3 px-2">Grade</th>
+                      <th className="text-left py-3 px-2">School</th>
+                      <th className="text-right py-3 px-2">Points</th>
+                      <th className="text-right py-3 px-2">Best Time</th>
+                      <th className="text-right py-3 px-2">Best Avg</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {students.map((student, index) => (
+                      <tr key={student.student_id} className="border-b border-white/10 hover:bg-white/5 transition">
+                        <td className="py-3 px-2">
+                          {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}`}
+                        </td>
+                        <td className="py-3 px-2">
+                          <Link href={`/students/${student.student_id}`} className="hover:text-yellow-300 transition">
+                            {student.first_name} {student.last_name}
+                          </Link>
+                        </td>
+                        <td className="py-3 px-2">{student.grade}</td>
+                        <td className="py-3 px-2">{student.school_name}</td>
+                        <td className="py-3 px-2 text-right font-bold">{student.total_points}</td>
+                        <td className="py-3 px-2 text-right">{student.best_time ? formatTime(student.best_time) : "—"}</td>
+                        <td className="py-3 px-2 text-right">{student.best_average ? formatTime(student.best_average) : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>
