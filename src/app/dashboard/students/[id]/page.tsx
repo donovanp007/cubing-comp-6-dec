@@ -578,7 +578,7 @@ export default function StudentDetailPage() {
       )}
 
       {/* Achievement Stats from Competition History */}
-      {competitionHistory.length > 0 && (
+      {competitionHistory && competitionHistory.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           {(() => {
             const bestTime = competitionHistory.length > 0
@@ -714,7 +714,7 @@ export default function StudentDetailPage() {
             <CardDescription>Complete competition history with times</CardDescription>
           </CardHeader>
           <CardContent>
-            {competitionHistory.length === 0 ? (
+            {!competitionHistory || competitionHistory.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Trophy className="h-12 w-12 mx-auto text-gray-300 mb-3" />
                 <p>No competition results yet</p>
