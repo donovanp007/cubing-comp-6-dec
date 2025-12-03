@@ -107,23 +107,38 @@ export default function StudentDetailPage() {
       setSolvesLoading(true);
       try {
         const supabase = createClient();
-        const { data: solvesData } = await supabase
+        const { data: solvesData, error: solvesError } = await supabase
           .from("results")
-          .select("time_milliseconds, is_dnf")
+          .select("id, time_milliseconds, is_dnf, created_at")
           .eq("round_id", selectedCompetition.round_id)
           .eq("student_id", studentId)
-          .order("created_at", { ascending: true });
+          .order("created_at", { ascending: true })
+          .limit(5);
+
+        console.log(`[Solves] Fetching for round ${selectedCompetition.round_id}, student ${studentId}`);
+        console.log(`[Solves] Error:`, solvesError);
+        console.log(`[Solves] Data:`, solvesData);
+
+        if (solvesError) {
+          console.error("Error fetching solves:", solvesError);
+          setCompetitionSolves([]);
+          return;
+        }
 
         if (solvesData) {
-          setCompetitionSolves(
-            solvesData.map((result: any) => ({
-              time: result.is_dnf ? null : result.time_milliseconds,
-              is_dnf: result.is_dnf,
-            }))
-          );
+          const mapped = solvesData.map((result: any) => ({
+            time: result.is_dnf ? null : result.time_milliseconds,
+            is_dnf: result.is_dnf,
+          }));
+          console.log(`[Solves] Mapped ${mapped.length} solves`);
+          setCompetitionSolves(mapped);
+        } else {
+          console.log("[Solves] No data returned");
+          setCompetitionSolves([]);
         }
       } catch (error) {
         console.error("Error fetching solves:", error);
+        setCompetitionSolves([]);
       } finally {
         setSolvesLoading(false);
       }
