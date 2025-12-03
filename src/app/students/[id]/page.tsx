@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -15,8 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatTime } from "@/lib/utils";
-import { Trophy, Medal, TrendingUp, Calendar, School, GraduationCap } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Trophy, Medal, TrendingUp, Calendar, School, GraduationCap, ArrowUpDown } from "lucide-react";
 
 interface StudentData {
   id: string;
@@ -35,6 +35,8 @@ interface CompetitionRound {
   average_time: number | null;
 }
 
+type SortOption = "date" | "best-time" | "best-avg";
+
 export default function PublicStudentProfilePage({
   params,
 }: {
@@ -43,12 +45,46 @@ export default function PublicStudentProfilePage({
   const { id: studentId } = use(params);
   const [student, setStudent] = useState<StudentData | null>(null);
   const [competitions, setCompetitions] = useState<CompetitionRound[]>([]);
+  const [sortedCompetitions, setSortedCompetitions] = useState<CompetitionRound[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [studentRank, setStudentRank] = useState<number | null>(null);
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [sortBy, setSortBy] = useState<SortOption>("date");
 
   useEffect(() => {
     fetchStudentData();
   }, [studentId]);
+
+  useEffect(() => {
+    applySorting();
+  }, [competitions, sortBy]);
+
+  const applySorting = () => {
+    let sorted = [...competitions];
+
+    if (sortBy === "date") {
+      sorted.sort((a, b) => {
+        const dateA = new Date(a.competition_date).getTime();
+        const dateB = new Date(b.competition_date).getTime();
+        return dateB - dateA; // Newest first
+      });
+    } else if (sortBy === "best-time") {
+      sorted.sort((a, b) => {
+        const timeA = a.best_time ?? Infinity;
+        const timeB = b.best_time ?? Infinity;
+        return timeA - timeB; // Fastest first
+      });
+    } else if (sortBy === "best-avg") {
+      sorted.sort((a, b) => {
+        const avgA = a.average_time ?? Infinity;
+        const avgB = b.average_time ?? Infinity;
+        return avgA - avgB; // Fastest average first
+      });
+    }
+
+    setSortedCompetitions(sorted);
+  };
 
   const fetchStudentData = async () => {
     try {
@@ -69,40 +105,94 @@ export default function PublicStudentProfilePage({
 
       setStudent(studentData as StudentData);
 
-      // Fetch competition history from final_scores
-      const { data: finalScoresData, error: scoresError } = await supabase
+      // Fetch competition history from final_scores - SIMPLE query (matching what works in rankings)
+      const { data: finalScoresData } = await supabase
         .from("final_scores")
-        .select(`
-          best_time_milliseconds,
-          average_time_milliseconds,
-          rounds(
-            round_name,
-            competition_events(
-              competitions(name, competition_date)
-            )
-          )
-        `)
+        .select("student_id, best_time_milliseconds, average_time_milliseconds, round_id, created_at")
         .eq("student_id", studentId)
         .order("created_at", { ascending: false });
 
-      if (scoresError) {
-        console.error("Error fetching scores:", scoresError);
-        setCompetitions([]);
-      } else {
-        console.log(`[DEBUG] final_scores data for ${studentId}:`, finalScoresData);
-        if (finalScoresData && finalScoresData.length > 0) {
-          const comps = finalScoresData.map((score: any) => ({
-            round_name: score.rounds?.round_name || "Unknown",
-            competition_name: score.rounds?.competition_events?.competitions?.name || "Unknown",
-            competition_date: score.rounds?.competition_events?.competitions?.competition_date || "",
-            best_time: score.best_time_milliseconds,
-            average_time: score.average_time_milliseconds,
-          }));
+      if (finalScoresData && finalScoresData.length > 0) {
+        console.log(`[DEBUG] Found ${finalScoresData.length} final_scores for ${studentId}`);
+
+        // Fetch round details for all the round IDs we found
+        const roundIds = finalScoresData.map((fs: any) => fs.round_id).filter(Boolean);
+
+        if (roundIds.length > 0) {
+          const { data: roundsData } = await supabase
+            .from("rounds")
+            .select(`
+              id,
+              round_name,
+              competition_events(
+                competitions(name, competition_date)
+              )
+            `)
+            .in("id", roundIds);
+
+          const roundsMap = new Map();
+          if (roundsData) {
+            roundsData.forEach((round: any) => {
+              roundsMap.set(round.id, round);
+            });
+          }
+
+          const comps = finalScoresData.map((score: any) => {
+            const roundInfo = roundsMap.get(score.round_id);
+            return {
+              round_name: roundInfo?.round_name || "Unknown",
+              competition_name: roundInfo?.competition_events?.[0]?.competitions?.name || "Unknown",
+              competition_date: roundInfo?.competition_events?.[0]?.competitions?.competition_date || "",
+              best_time: score.best_time_milliseconds,
+              average_time: score.average_time_milliseconds,
+            };
+          });
           setCompetitions(comps);
           console.log(`[DEBUG] Mapped ${comps.length} competitions`);
         } else {
-          console.log("[DEBUG] No final_scores found - student may need backfill");
           setCompetitions([]);
+        }
+      } else {
+        console.log("[DEBUG] No final_scores found for student");
+        setCompetitions([]);
+      }
+
+      // Fetch all students to calculate rank
+      const { data: allStudentsData } = await supabase
+        .from("students")
+        .select("id");
+
+      if (allStudentsData) {
+        setTotalStudents(allStudentsData.length);
+
+        // Fetch all final scores to calculate best times
+        const { data: allFinalScores } = await supabase
+          .from("final_scores")
+          .select("student_id, best_time_milliseconds");
+
+        const bestTimes = new Map<string, number>();
+        if (allFinalScores) {
+          for (const score of allFinalScores) {
+            if (score.best_time_milliseconds) {
+              const current = bestTimes.get(score.student_id);
+              bestTimes.set(
+                score.student_id,
+                current ? Math.min(current, score.best_time_milliseconds) : score.best_time_milliseconds
+              );
+            }
+          }
+        }
+
+        // Calculate this student's rank
+        const myBestTime = bestTimes.get(studentId);
+        if (myBestTime) {
+          let rank = 1;
+          for (const [otherId, otherBestTime] of bestTimes.entries()) {
+            if (otherId !== studentId && otherBestTime < myBestTime) {
+              rank++;
+            }
+          }
+          setStudentRank(rank);
         }
       }
 
@@ -158,12 +248,29 @@ export default function PublicStudentProfilePage({
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <Trophy className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Rank</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {studentRank ? `#${studentRank}` : "—"}
+                  </p>
+                  <p className="text-xs text-gray-500">of {totalStudents}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <Trophy className="h-6 w-6 text-blue-600" />
+                  <Calendar className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Competitions</p>
@@ -209,13 +316,46 @@ export default function PublicStudentProfilePage({
         {/* Competition History */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Competition History
-            </CardTitle>
-            <CardDescription>
-              All competitions participated in
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Competition History
+                </CardTitle>
+                <CardDescription>
+                  All competitions participated in
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={sortBy === "date" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSortBy("date")}
+                  className="text-xs"
+                >
+                  <ArrowUpDown className="h-4 w-4 mr-1" />
+                  Date
+                </Button>
+                <Button
+                  variant={sortBy === "best-time" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSortBy("best-time")}
+                  className="text-xs"
+                >
+                  <ArrowUpDown className="h-4 w-4 mr-1" />
+                  Fastest Time
+                </Button>
+                <Button
+                  variant={sortBy === "best-avg" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSortBy("best-avg")}
+                  className="text-xs"
+                >
+                  <ArrowUpDown className="h-4 w-4 mr-1" />
+                  Fastest Avg
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {competitions.length === 0 ? (
@@ -231,19 +371,27 @@ export default function PublicStudentProfilePage({
                       <TableHead>Round</TableHead>
                       <TableHead className="text-right">Best Time</TableHead>
                       <TableHead className="text-right">Best Avg</TableHead>
-                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Date</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {competitions.map((comp, idx) => (
+                    {sortedCompetitions.map((comp, idx) => (
                       <TableRow key={idx}>
                         <TableCell className="font-medium">{comp.competition_name}</TableCell>
                         <TableCell>{comp.round_name}</TableCell>
-                        <TableCell className="text-right">
-                          {comp.best_time ? formatTime(comp.best_time) : "—"}
+                        <TableCell className="text-right font-mono">
+                          {comp.best_time ? (
+                            <span className="text-green-600 font-semibold">{formatTime(comp.best_time)}</span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
                         </TableCell>
-                        <TableCell className="text-right">
-                          {comp.average_time ? formatTime(comp.average_time) : "—"}
+                        <TableCell className="text-right font-mono">
+                          {comp.average_time ? (
+                            <span className="text-blue-600 font-semibold">{formatTime(comp.average_time)}</span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-sm text-gray-600">
                           {comp.competition_date

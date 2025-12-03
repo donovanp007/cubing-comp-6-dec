@@ -14,23 +14,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Trophy, Medal, Users, TrendingUp, Star, Flame } from "lucide-react";
+import { Trophy, Medal, Users, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { formatTime } from "@/lib/utils";
-import { useState as useStateHook } from "react";
 import { TierBadge } from "@/components/tier-badge";
 import { TopPerformersCarousel } from "@/components/top-performers-carousel";
 import { RecentAchievers } from "@/components/recent-achievers";
-
-interface SchoolRanking {
-  school_id: string;
-  school_name: string;
-  total_points: number;
-  competitions_count: number;
-  students_count: number;
-  rank: number;
-  division?: string;
-}
 
 interface StudentRanking {
   student_id: string;
@@ -39,137 +28,28 @@ interface StudentRanking {
   grade: number;
   school_name: string;
   total_points: number;
-  competitions_count: number;
-  rank: number;
   best_time?: number | null;
   best_average?: number | null;
   badge_count?: number;
-  typical_tier?: string;
-  best_time_points?: number;
-  avg_time_points?: number;
-  bonus_points?: number;
 }
 
 export default function RankingsPage() {
-  const [schoolRankings, setSchoolRankings] = useState<SchoolRanking[]>([]);
   const [studentRankings, setStudentRankings] = useState<StudentRanking[]>([]);
   const [topPerformers, setTopPerformers] = useState<any[]>([]);
   const [recentAchievers, setRecentAchievers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"schools" | "students">("schools");
-  const [filters, setFilters] = useState({
-    eventType: "all",
-    schoolYear: "all",
-    term: "all",
-    grade: "all",
-  });
-  const [availableFilters, setAvailableFilters] = useState({
-    eventTypes: [] as Array<{ id: string; name: string }>,
-    schoolYears: [] as string[],
-    terms: [] as string[],
-    grades: [] as string[],
-  });
   const { toast } = useToast();
 
   useEffect(() => {
     fetchRankings();
-  }, [filters]);
+  }, []);
 
   const fetchRankings = async () => {
     setLoading(true);
     try {
       const supabase = createClient();
 
-      // Fetch overall school rankings
-      const { data: schoolData, error: schoolError } = await supabase
-        .from("point_transactions")
-        .select(
-          `
-          school_id,
-          schools(id, name),
-          competition_id
-        `
-        );
-
-      if (schoolError) {
-        console.error("School rankings error:", schoolError);
-        return;
-      }
-
-      // Calculate school totals
-      const schoolTotals = new Map<string, { name: string; points: number; competitions: Set<string>; students: Set<string> }>();
-
-      if (schoolData) {
-        for (const record of schoolData) {
-          const schoolId = record.school_id;
-          const schoolName = record.schools?.name || "Unknown School";
-
-          if (!schoolTotals.has(schoolId)) {
-            schoolTotals.set(schoolId, { name: schoolName, points: 0, competitions: new Set(), students: new Set() });
-          }
-
-          const existing = schoolTotals.get(schoolId)!;
-          existing.competitions.add(record.competition_id);
-        }
-      }
-
-      // Get total points per school per competition (all competitions)
-      const { data: standingsData } = await supabase
-        .from("school_standings")
-        .select(`
-          school_id,
-          schools(name, division, color_hex),
-          total_points,
-          competition_id,
-          competitions(competition_type)
-        `);
-
-      const schoolRankingsList: SchoolRanking[] = [];
-      const schoolMap = new Map<string, { points: number; competitions: Set<string>; name: string; division?: string; color_hex?: string }>();
-
-      if (standingsData) {
-        for (const standing of standingsData) {
-          const schoolId = standing.school_id;
-          const schoolName = standing.schools?.name || "Unknown School";
-          const division = standing.schools?.division;
-          const color_hex = standing.schools?.color_hex;
-
-          if (!schoolMap.has(schoolId)) {
-            schoolMap.set(schoolId, { points: 0, competitions: new Set(), name: schoolName, division, color_hex });
-          }
-
-          const existing = schoolMap.get(schoolId)!;
-          existing.points += standing.total_points || 0;
-          existing.competitions.add(standing.competition_id);
-        }
-      }
-
-      // Convert to array and sort
-      let rank = 1;
-      schoolMap.forEach((data, schoolId) => {
-        schoolRankingsList.push({
-          school_id: schoolId,
-          school_name: data.name,
-          total_points: Math.round(data.points * 10) / 10,
-          competitions_count: data.competitions.size,
-          students_count: 0, // Will fill later
-          rank: rank++,
-        });
-      });
-
-      schoolRankingsList.sort((a, b) => b.total_points - a.total_points);
-      schoolRankingsList.forEach((school, index) => {
-        school.rank = index + 1;
-        // Get division from schoolMap
-        const schoolData = schoolMap.get(school.school_id);
-        if (schoolData) {
-          school.division = schoolData.division;
-        }
-      });
-
-      setSchoolRankings(schoolRankingsList);
-
-      // Fetch overall student rankings
+      // Fetch all students with basic info
       const { data: studentData } = await supabase
         .from("students")
         .select("id, first_name, last_name, grade, schools(name)");
@@ -180,7 +60,6 @@ export default function RankingsPage() {
         grade: number;
         school_name: string;
         points: number;
-        competitions: Set<string>;
       }>();
 
       if (studentData) {
@@ -191,40 +70,28 @@ export default function RankingsPage() {
             grade: student.grade,
             school_name: student.schools?.name || "Unknown School",
             points: 0,
-            competitions: new Set(),
           });
         }
       }
 
-      // Get point transactions for each student (all competitions)
+      // Get all point transactions (same logic as public rankings)
       const { data: pointData } = await supabase
         .from("point_transactions")
-        .select(`
-          student_id,
-          final_points,
-          competition_id,
-          competitions(competition_type)
-        `);
+        .select("student_id, final_points");
 
       if (pointData) {
         for (const point of pointData) {
           const student = studentMap.get(point.student_id);
           if (student) {
             student.points += point.final_points || 0;
-            student.competitions.add(point.competition_id);
           }
         }
       }
 
-      // Fetch career best times from final_scores (all competitions)
+      // Get best times from final_scores (same logic as public rankings - NO filters)
       const { data: finalScoresData } = await supabase
         .from("final_scores")
-        .select(`
-          student_id,
-          best_time_milliseconds,
-          average_time_milliseconds,
-          rounds(competition_events(competitions(competition_type)))
-        `);
+        .select("student_id, best_time_milliseconds, average_time_milliseconds");
 
       const careerBestTimes = new Map<string, { best_time?: number; best_average?: number }>();
 
@@ -232,14 +99,12 @@ export default function RankingsPage() {
         for (const score of finalScoresData) {
           const existing = careerBestTimes.get(score.student_id) || { best_time: undefined, best_average: undefined };
 
-          // Track minimum single time
           if (score.best_time_milliseconds) {
             existing.best_time = existing.best_time
               ? Math.min(existing.best_time, score.best_time_milliseconds)
               : score.best_time_milliseconds;
           }
 
-          // Track minimum average time
           if (score.average_time_milliseconds) {
             existing.best_average = existing.best_average
               ? Math.min(existing.best_average, score.average_time_milliseconds)
@@ -262,90 +127,24 @@ export default function RankingsPage() {
         }
       }
 
-      // Fetch point breakdown by type (all competitions)
-      const { data: pointBreakdownData } = await supabase
-        .from("point_transactions")
-        .select(`
-          student_id,
-          point_type,
-          final_points,
-          tier_achieved,
-          competitions(competition_type)
-        `);
-
-      const pointBreakdowns = new Map<string, { best_time: number; avg_time: number; bonus: number }>();
-      const tierCounts = new Map<string, Map<string, number>>();
-
-      if (pointBreakdownData) {
-        for (const pt of pointBreakdownData) {
-          if (!pointBreakdowns.has(pt.student_id)) {
-            pointBreakdowns.set(pt.student_id, { best_time: 0, avg_time: 0, bonus: 0 });
-          }
-          const breakdown = pointBreakdowns.get(pt.student_id)!;
-          if (pt.point_type === "best_time") {
-            breakdown.best_time += pt.final_points;
-
-            // Track tier counts for typical_tier calculation
-            if (pt.tier_achieved) {
-              if (!tierCounts.has(pt.student_id)) {
-                tierCounts.set(pt.student_id, new Map());
-              }
-              const tierMap = tierCounts.get(pt.student_id)!;
-              tierMap.set(pt.tier_achieved, (tierMap.get(pt.tier_achieved) || 0) + 1);
-            }
-          } else if (pt.point_type === "average_time") {
-            breakdown.avg_time += pt.final_points;
-          } else {
-            breakdown.bonus += pt.final_points;
-          }
-        }
-      }
-
-      // Helper function to find most common tier
-      const getTypicalTier = (studentId: string): string | undefined => {
-        const tierMap = tierCounts.get(studentId);
-        if (!tierMap || tierMap.size === 0) return undefined;
-
-        let maxCount = 0;
-        let mostCommonTier: string | undefined;
-        for (const [tier, count] of tierMap) {
-          if (count > maxCount) {
-            maxCount = count;
-            mostCommonTier = tier;
-          }
-        }
-        return mostCommonTier;
-      };
-
       // Convert to array and sort
       const studentRankingsList: StudentRanking[] = [];
-      rank = 1;
       studentMap.forEach((data, studentId) => {
         const careerTimes = careerBestTimes.get(studentId);
-        const breakdown = pointBreakdowns.get(studentId);
         studentRankingsList.push({
           student_id: studentId,
           first_name: data.first_name,
           last_name: data.last_name,
           grade: data.grade,
           school_name: data.school_name,
-          total_points: Math.round(data.points * 10) / 10,
-          competitions_count: data.competitions.size,
-          rank: rank++,
+          total_points: data.points,
           best_time: careerTimes?.best_time || null,
           best_average: careerTimes?.best_average || null,
           badge_count: badgeCounts.get(studentId) || 0,
-          typical_tier: getTypicalTier(studentId),
-          best_time_points: breakdown?.best_time || 0,
-          avg_time_points: breakdown?.avg_time || 0,
-          bonus_points: breakdown?.bonus || 0,
         });
       });
 
       studentRankingsList.sort((a, b) => b.total_points - a.total_points);
-      studentRankingsList.forEach((student, index) => {
-        student.rank = index + 1;
-      });
 
       setStudentRankings(studentRankingsList);
 
@@ -435,8 +234,8 @@ export default function RankingsPage() {
                 <Trophy className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Schools Competing</p>
-                <p className="text-2xl font-bold">{schoolRankings.length}</p>
+                <p className="text-sm text-gray-500">Total Students</p>
+                <p className="text-2xl font-bold">{studentRankings.length}</p>
               </div>
             </div>
           </CardContent>
@@ -448,8 +247,10 @@ export default function RankingsPage() {
                 <Users className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Students</p>
-                <p className="text-2xl font-bold">{studentRankings.length}</p>
+                <p className="text-sm text-gray-500">Top Student Points</p>
+                <p className="text-2xl font-bold">
+                  {studentRankings.length > 0 ? Math.round(studentRankings[0].total_points) : 0}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -461,9 +262,11 @@ export default function RankingsPage() {
                 <TrendingUp className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Top School Points</p>
+                <p className="text-sm text-gray-500">Top Student Best Time</p>
                 <p className="text-2xl font-bold">
-                  {schoolRankings.length > 0 ? schoolRankings[0].total_points : 0}
+                  {studentRankings.length > 0 && studentRankings[0].best_time
+                    ? formatTime(studentRankings[0].best_time)
+                    : "—"}
                 </p>
               </div>
             </div>
@@ -471,172 +274,23 @@ export default function RankingsPage() {
         </Card>
       </div>
 
-      {/* Filters */}
-      <Card className="mb-6">
+      {/* Student Rankings */}
+      <Card>
         <CardHeader>
-          <CardTitle className="text-base">Filters</CardTitle>
-          <CardDescription>Filter rankings by event, time period, and grade</CardDescription>
+          <CardTitle>Student Rankings</CardTitle>
+          <CardDescription>
+            Career points and times across all competitions
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Event Type Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Event Type</label>
-              <select
-                value={filters.eventType}
-                onChange={(e) => setFilters({ ...filters, eventType: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md bg-background"
-              >
-                <option value="all">All Events</option>
-                {availableFilters.eventTypes.map((et) => (
-                  <option key={et.id} value={et.id}>{et.name}</option>
-                ))}
-              </select>
+          {loading ? (
+            <div className="py-12 text-center text-gray-500">Loading rankings...</div>
+          ) : studentRankings.length === 0 ? (
+            <div className="py-12 text-center text-gray-500">
+              No rankings data yet. Complete a competition to generate rankings.
             </div>
-
-            {/* School Year Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">School Year</label>
-              <select
-                value={filters.schoolYear}
-                onChange={(e) => setFilters({ ...filters, schoolYear: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md bg-background"
-              >
-                <option value="all">All Years</option>
-                {availableFilters.schoolYears.map((year) => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Term Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Term</label>
-              <select
-                value={filters.term}
-                onChange={(e) => setFilters({ ...filters, term: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md bg-background"
-              >
-                <option value="all">All Terms</option>
-                {availableFilters.terms.map((term) => (
-                  <option key={term} value={term}>{term}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Grade Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Grade</label>
-              <select
-                value={filters.grade}
-                onChange={(e) => setFilters({ ...filters, grade: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md bg-background"
-              >
-                <option value="all">All Grades</option>
-                {availableFilters.grades.map((grade) => (
-                  <option key={grade} value={grade}>Grade {grade}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Rankings Toggle */}
-      <div className="flex gap-2 mb-6">
-        <Button
-          onClick={() => setActiveTab("schools")}
-          variant={activeTab === "schools" ? "default" : "outline"}
-        >
-          School Rankings
-        </Button>
-        <Button
-          onClick={() => setActiveTab("students")}
-          variant={activeTab === "students" ? "default" : "outline"}
-        >
-          Student Rankings
-        </Button>
-      </div>
-
-      {/* School Rankings */}
-      {activeTab === "schools" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>School Standings</CardTitle>
-            <CardDescription>
-              Total points accumulated across all competitions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="py-12 text-center text-gray-500">Loading rankings...</div>
-            ) : schoolRankings.length === 0 ? (
-              <div className="py-12 text-center text-gray-500">
-                No rankings data yet. Complete a competition to generate rankings.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">Rank</TableHead>
-                    <TableHead>School</TableHead>
-                    <TableHead className="text-center">Division</TableHead>
-                    <TableHead className="text-right">Total Points</TableHead>
-                    <TableHead className="text-right">Competitions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {schoolRankings.map((school) => (
-                    <TableRow key={school.school_id}>
-                      <TableCell className="font-semibold text-lg">
-                        {getMedalEmoji(school.rank)}
-                      </TableCell>
-                      <TableCell className="font-medium">{school.school_name}</TableCell>
-                      <TableCell className="text-center">
-                        {school.division ? (
-                          <Badge className={
-                            school.division === 'A' ? 'bg-red-600' :
-                            school.division === 'B' ? 'bg-blue-600' :
-                            'bg-green-600'
-                          }>
-                            Division {school.division}
-                          </Badge>
-                        ) : (
-                          <span className="text-gray-400 text-sm">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {school.total_points.toFixed(1)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="secondary">{school.competitions_count}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Student Rankings */}
-      {activeTab === "students" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Student Rankings</CardTitle>
-            <CardDescription>
-              Career points across all competitions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="py-12 text-center text-gray-500">Loading rankings...</div>
-            ) : studentRankings.length === 0 ? (
-              <div className="py-12 text-center text-gray-500">
-                No rankings data yet. Complete a competition to generate rankings.
-              </div>
-            ) : (
+          ) : (
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -644,19 +298,17 @@ export default function RankingsPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Grade</TableHead>
                     <TableHead>School</TableHead>
-                    <TableHead className="text-center">Tier</TableHead>
-                    <TableHead className="text-center">Badges</TableHead>
                     <TableHead className="text-right">Best Time</TableHead>
                     <TableHead className="text-right">Best Avg</TableHead>
                     <TableHead className="text-right">Career Points</TableHead>
-                    <TableHead className="text-right">Competitions</TableHead>
+                    <TableHead className="text-right">Badges</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {studentRankings.slice(0, 100).map((student) => (
+                  {studentRankings.map((student, index) => (
                     <TableRow key={student.student_id}>
                       <TableCell className="font-semibold text-lg">
-                        {getMedalEmoji(student.rank)}
+                        {getMedalEmoji(index + 1)}
                       </TableCell>
                       <TableCell className="font-medium">
                         <Link
@@ -670,48 +322,33 @@ export default function RankingsPage() {
                         <Badge variant="outline">Grade {student.grade}</Badge>
                       </TableCell>
                       <TableCell>{student.school_name}</TableCell>
-                      <TableCell className="text-center">
-                        {student.typical_tier ? (
-                          <TierBadge tier={student.typical_tier} size="sm" />
-                        ) : (
-                          <span className="text-gray-400 text-sm">-</span>
-                        )}
+                      <TableCell className="text-right font-mono text-green-600">
+                        {student.best_time ? formatTime(student.best_time) : "—"}
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-right font-mono text-blue-600">
+                        {student.best_average ? formatTime(student.best_average) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {Math.round(student.total_points)}
+                      </TableCell>
+                      <TableCell className="text-right">
                         {student.badge_count > 0 ? (
                           <div className="flex items-center justify-center gap-1">
                             <Medal className="h-4 w-4 text-yellow-600" />
                             <span className="font-semibold">{student.badge_count}</span>
                           </div>
                         ) : (
-                          <span className="text-gray-400 text-sm">-</span>
+                          <span className="text-gray-400">—</span>
                         )}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-green-600">
-                        {student.best_time ? formatTime(student.best_time) : "-"}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-blue-600">
-                        {student.best_average ? formatTime(student.best_average) : "-"}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold group relative cursor-help">
-                        {student.total_points.toFixed(1)}
-                        <div className="hidden group-hover:block absolute z-10 bg-slate-900 text-white p-3 rounded shadow-lg right-0 top-full mt-2 whitespace-nowrap text-sm">
-                          <p>Best Time: {student.best_time_points.toFixed(1)}</p>
-                          <p>Avg Time: {student.avg_time_points.toFixed(1)}</p>
-                          <p>Bonuses: {student.bonus_points.toFixed(1)}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="secondary">{student.competitions_count}</Badge>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-            )}
-          </CardContent>
-        </Card>
-      )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
