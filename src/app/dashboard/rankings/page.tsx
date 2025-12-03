@@ -113,7 +113,7 @@ export default function RankingsPage() {
         }
       }
 
-      // Get total points per school per competition (major competitions only)
+      // Get total points per school per competition (all competitions)
       const { data: standingsData } = await supabase
         .from("school_standings")
         .select(`
@@ -122,8 +122,7 @@ export default function RankingsPage() {
           total_points,
           competition_id,
           competitions(competition_type)
-        `)
-        .eq("competitions.competition_type", "major");
+        `);
 
       const schoolRankingsList: SchoolRanking[] = [];
       const schoolMap = new Map<string, { points: number; competitions: Set<string>; name: string; division?: string; color_hex?: string }>();
@@ -197,7 +196,7 @@ export default function RankingsPage() {
         }
       }
 
-      // Get point transactions for each student (major competitions only)
+      // Get point transactions for each student (all competitions)
       const { data: pointData } = await supabase
         .from("point_transactions")
         .select(`
@@ -205,8 +204,7 @@ export default function RankingsPage() {
           final_points,
           competition_id,
           competitions(competition_type)
-        `)
-        .eq("competitions.competition_type", "major");
+        `);
 
       if (pointData) {
         for (const point of pointData) {
@@ -218,7 +216,7 @@ export default function RankingsPage() {
         }
       }
 
-      // Fetch career best times from final_scores (major competitions only)
+      // Fetch career best times from final_scores (all competitions)
       const { data: finalScoresData } = await supabase
         .from("final_scores")
         .select(`
@@ -226,8 +224,7 @@ export default function RankingsPage() {
           best_time_milliseconds,
           average_time_milliseconds,
           rounds(competition_events(competitions(competition_type)))
-        `)
-        .eq("rounds.competition_events.competitions.competition_type", "major");
+        `);
 
       const careerBestTimes = new Map<string, { best_time?: number; best_average?: number }>();
 
@@ -265,7 +262,7 @@ export default function RankingsPage() {
         }
       }
 
-      // Fetch point breakdown by type (major competitions only)
+      // Fetch point breakdown by type (all competitions)
       const { data: pointBreakdownData } = await supabase
         .from("point_transactions")
         .select(`
@@ -274,8 +271,7 @@ export default function RankingsPage() {
           final_points,
           tier_achieved,
           competitions(competition_type)
-        `)
-        .eq("competitions.competition_type", "major");
+        `);
 
       const pointBreakdowns = new Map<string, { best_time: number; avg_time: number; bonus: number }>();
       const tierCounts = new Map<string, Map<string, number>>();
