@@ -176,6 +176,59 @@ export default function PublicStudentProfilePage({
       console.error("Error loading point data:", error);
     }
 
+    // Fallback: Also fetch competition history from final_scores if point history is empty
+    if ((!pointHistory || pointHistory.length === 0) && !pointSummary) {
+      try {
+        const { data: finalScoresData } = await supabase
+          .from("final_scores")
+          .select(`
+            round_id,
+            best_time_milliseconds,
+            average_time_milliseconds,
+            rounds!inner(
+              id,
+              round_name,
+              round_number,
+              competition_event_id,
+              competition_events!inner(
+                id,
+                competition_id,
+                competitions(id, name, competition_date)
+              )
+            )
+          `)
+          .eq("student_id", studentId)
+          .order("rounds(created_at)", { ascending: false });
+
+        // If we have final_scores, create point history from them
+        if (finalScoresData && finalScoresData.length > 0) {
+          const fallbackHistory: StudentPointRecord[] = finalScoresData.map((score: any) => ({
+            competition_id: score.rounds.competition_events.competition_id,
+            competition_name: score.rounds.competition_events.competitions.name,
+            competition_date: score.rounds.competition_events.competitions.competition_date,
+            event_id: score.rounds.competition_events.id,
+            event_name: score.rounds.competition_events.id,
+            round_id: score.round_id,
+            round_name: score.rounds.round_name,
+            round_number: score.rounds.round_number,
+            total_points: 0,
+            best_time_points: 0,
+            average_time_points: 0,
+            bonus_points: 0,
+            bonus_details: {
+              pb_bonus: 0,
+              clutch_bonus: 0,
+              streak_bonus: 0,
+              school_momentum_bonus: 0,
+            },
+          }));
+          setPointHistory(fallbackHistory);
+        }
+      } catch (error) {
+        console.error("Error loading fallback competition data:", error);
+      }
+    }
+
     setLoading(false);
   };
 
