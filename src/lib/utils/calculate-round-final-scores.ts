@@ -84,9 +84,7 @@ export async function calculateAllFinalScoresForRound(
     if (finalScoresToUpsert.length > 0) {
       const { error: upsertError } = await supabase
         .from("final_scores")
-        .upsert(finalScoresToUpsert, {
-          onConflict: "student_id,round_id",
-        });
+        .upsert(finalScoresToUpsert);
 
       if (upsertError) {
         return {
