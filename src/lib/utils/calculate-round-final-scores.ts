@@ -76,7 +76,7 @@ export async function calculateAllFinalScoresForRound(
         student_id: studentId,
         round_id: roundId,
         best_time_milliseconds: ranking.bestTime || null,
-        average_time_milliseconds: ranking.averageTime || null,
+        average_time_milliseconds: ranking.averageTime ? Math.round(ranking.averageTime) : null,
       });
     }
 

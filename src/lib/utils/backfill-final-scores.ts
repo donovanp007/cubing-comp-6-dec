@@ -166,7 +166,7 @@ export async function backfillAllFinalScores(): Promise<BackfillResult> {
             student_id: studentId,
             round_id: round.id,
             best_time_milliseconds: ranking.bestTime || null,
-            average_time_milliseconds: ranking.averageTime || null,
+            average_time_milliseconds: ranking.averageTime ? Math.round(ranking.averageTime) : null,
           });
         }
 
