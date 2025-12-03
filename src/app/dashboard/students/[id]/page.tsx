@@ -940,13 +940,13 @@ export default function StudentDetailPage() {
 
               {/* Individual Solve Times */}
               <div className="mt-6 pt-6 border-t">
-                <p className="text-sm text-gray-600 mb-3 font-semibold">All 5 Solve Times</p>
+                <p className="text-sm text-gray-600 mb-3 font-semibold">All 5 Solve Times ({competitionSolves.length})</p>
                 {solvesLoading ? (
                   <div className="text-center py-4 text-gray-500">Loading solves...</div>
                 ) : competitionSolves.length === 0 ? (
                   <div className="text-center py-4 text-gray-500">No solve times recorded</div>
                 ) : (
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
                     {competitionSolves.map((solve, idx) => (
                       <div
                         key={idx}
