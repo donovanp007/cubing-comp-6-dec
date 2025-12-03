@@ -88,15 +88,22 @@ export default function PublicStudentProfilePage({
       if (scoresError) {
         console.error("Error fetching scores:", scoresError);
         setCompetitions([]);
-      } else if (finalScoresData && finalScoresData.length > 0) {
-        const comps = finalScoresData.map((score: any) => ({
-          round_name: score.rounds?.round_name || "Unknown",
-          competition_name: score.rounds?.competition_events?.competitions?.name || "Unknown",
-          competition_date: score.rounds?.competition_events?.competitions?.competition_date || "",
-          best_time: score.best_time_milliseconds,
-          average_time: score.average_time_milliseconds,
-        }));
-        setCompetitions(comps);
+      } else {
+        console.log(`[DEBUG] final_scores data for ${studentId}:`, finalScoresData);
+        if (finalScoresData && finalScoresData.length > 0) {
+          const comps = finalScoresData.map((score: any) => ({
+            round_name: score.rounds?.round_name || "Unknown",
+            competition_name: score.rounds?.competition_events?.competitions?.name || "Unknown",
+            competition_date: score.rounds?.competition_events?.competitions?.competition_date || "",
+            best_time: score.best_time_milliseconds,
+            average_time: score.average_time_milliseconds,
+          }));
+          setCompetitions(comps);
+          console.log(`[DEBUG] Mapped ${comps.length} competitions`);
+        } else {
+          console.log("[DEBUG] No final_scores found - student may need backfill");
+          setCompetitions([]);
+        }
       }
 
       setLoading(false);
