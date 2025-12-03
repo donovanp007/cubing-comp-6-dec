@@ -7,12 +7,12 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
-h1 {
+/* h1 {
   text-align: center;
   color: #333;
   margin-bottom: 10px;
   font-size: 2.5em;
-}
+} */
 
 .subtitle {
   text-align: center;
@@ -69,7 +69,7 @@ h1 {
   flex-wrap: wrap;
 }
 
-button {
+/* button {
   padding: 15px 35px;
   font-size: 1.1em;
   border: none;
@@ -78,7 +78,7 @@ button {
   transition: all 0.3s ease;
   font-weight: 600;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
+} */
 
 .generateBtn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -231,9 +231,9 @@ button {
     padding: 20px;
   }
 
-  h1 {
+  /* h1 {
     font-size: 1.8em;
-  }
+  } */
 
   .moveImage {
     width: 30px;

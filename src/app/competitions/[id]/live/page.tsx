@@ -204,8 +204,9 @@ export default function CompetitionLivePublicPage({
         .order("best_time_milliseconds", { ascending: true });
 
       if (allFinalScores && allFinalScores.length > 0) {
+        const scores = allFinalScores as any[];
         // Overall winner (fastest across all events)
-        const winner = allFinalScores[0];
+        const winner = scores[0];
         setOverallWinner(winner?.students ? {
           id: winner.students.id,
           first_name: winner.students.first_name,
@@ -216,7 +217,7 @@ export default function CompetitionLivePublicPage({
         } : null);
 
         // Fastest girl (fastest female competitor)
-        const girl = allFinalScores.find((f: any) => f.students?.gender === "female");
+        const girl = scores.find((f: any) => f.students?.gender === "female");
         setFastestGirl(girl?.students ? {
           id: girl.students.id,
           first_name: girl.students.first_name,
@@ -229,7 +230,7 @@ export default function CompetitionLivePublicPage({
         // Fastest by grade (Grade 1-7)
         const gradeData = [1, 2, 3, 4, 5, 6, 7].map((grade) => {
           const gradeKey = `Grade ${grade}`;
-          const fastest = allFinalScores.find((f: any) => f.students?.grade === gradeKey);
+          const fastest = scores.find((f: any) => f.students?.grade === gradeKey);
           return {
             grade,
             student: fastest?.students ? {
@@ -442,7 +443,7 @@ export default function CompetitionLivePublicPage({
                 advancement_status: undefined,
                 attempts: allAttempts,
                 is_record_breaker: !!(recordTime && stats.bestTime && stats.bestTime === recordTime && stats.bestTime > 0),
-                is_personal_best: !!(pbMap.get(studentId) && stats.bestTime && stats.bestTime < pbMap.get(studentId)),
+                is_personal_best: !!(pbMap.get(studentId) && stats.bestTime && stats.bestTime < (pbMap.get(studentId) || Infinity)),
               };
             })
             .sort((a, b) => {
@@ -632,8 +633,8 @@ export default function CompetitionLivePublicPage({
         <div className="text-slate-300 mb-8">
           <CompetitionSummaryCards
             summary={{
-              date: competition?.competition_date,
-              location: competition?.location,
+              date: undefined,
+              location: undefined,
               totalEvents: events.length,
               totalParticipants: results.length,
             }}

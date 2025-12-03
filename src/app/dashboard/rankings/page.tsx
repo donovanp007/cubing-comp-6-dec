@@ -14,9 +14,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Trophy, Medal, Users, TrendingUp } from "lucide-react";
+import { Trophy, Medal, Users, TrendingUp, Star, Flame } from "lucide-react";
 import Link from "next/link";
 import { formatTime } from "@/lib/utils";
+import { useState as useStateHook } from "react";
+import { TierBadge } from "@/components/tier-badge";
+import { TopPerformersCarousel } from "@/components/top-performers-carousel";
+import { RecentAchievers } from "@/components/recent-achievers";
 
 interface SchoolRanking {
   school_id: string;
@@ -25,6 +29,7 @@ interface SchoolRanking {
   competitions_count: number;
   students_count: number;
   rank: number;
+  division?: string;
 }
 
 interface StudentRanking {
@@ -38,11 +43,18 @@ interface StudentRanking {
   rank: number;
   best_time?: number | null;
   best_average?: number | null;
+  badge_count?: number;
+  typical_tier?: string;
+  best_time_points?: number;
+  avg_time_points?: number;
+  bonus_points?: number;
 }
 
 export default function RankingsPage() {
   const [schoolRankings, setSchoolRankings] = useState<SchoolRanking[]>([]);
   const [studentRankings, setStudentRankings] = useState<StudentRanking[]>([]);
+  const [topPerformers, setTopPerformers] = useState<any[]>([]);
+  const [recentAchievers, setRecentAchievers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"schools" | "students">("schools");
   const [filters, setFilters] = useState({
@@ -106,7 +118,7 @@ export default function RankingsPage() {
         .from("school_standings")
         .select(`
           school_id,
-          schools(name),
+          schools(name, division, color_hex),
           total_points,
           competition_id,
           competitions(competition_type)
@@ -114,15 +126,17 @@ export default function RankingsPage() {
         .eq("competitions.competition_type", "major");
 
       const schoolRankingsList: SchoolRanking[] = [];
-      const schoolMap = new Map<string, { points: number; competitions: Set<string>; name: string }>();
+      const schoolMap = new Map<string, { points: number; competitions: Set<string>; name: string; division?: string; color_hex?: string }>();
 
       if (standingsData) {
         for (const standing of standingsData) {
           const schoolId = standing.school_id;
           const schoolName = standing.schools?.name || "Unknown School";
+          const division = standing.schools?.division;
+          const color_hex = standing.schools?.color_hex;
 
           if (!schoolMap.has(schoolId)) {
-            schoolMap.set(schoolId, { points: 0, competitions: new Set(), name: schoolName });
+            schoolMap.set(schoolId, { points: 0, competitions: new Set(), name: schoolName, division, color_hex });
           }
 
           const existing = schoolMap.get(schoolId)!;
@@ -147,6 +161,11 @@ export default function RankingsPage() {
       schoolRankingsList.sort((a, b) => b.total_points - a.total_points);
       schoolRankingsList.forEach((school, index) => {
         school.rank = index + 1;
+        // Get division from schoolMap
+        const schoolData = schoolMap.get(school.school_id);
+        if (schoolData) {
+          school.division = schoolData.division;
+        }
       });
 
       setSchoolRankings(schoolRankingsList);
@@ -234,11 +253,80 @@ export default function RankingsPage() {
         }
       }
 
+      // Fetch badge counts
+      const { data: badgeData } = await supabase
+        .from("student_achievements")
+        .select("student_id");
+
+      const badgeCounts = new Map<string, number>();
+      if (badgeData) {
+        for (const badge of badgeData) {
+          badgeCounts.set(badge.student_id, (badgeCounts.get(badge.student_id) || 0) + 1);
+        }
+      }
+
+      // Fetch point breakdown by type (major competitions only)
+      const { data: pointBreakdownData } = await supabase
+        .from("point_transactions")
+        .select(`
+          student_id,
+          point_type,
+          final_points,
+          tier_achieved,
+          competitions(competition_type)
+        `)
+        .eq("competitions.competition_type", "major");
+
+      const pointBreakdowns = new Map<string, { best_time: number; avg_time: number; bonus: number }>();
+      const tierCounts = new Map<string, Map<string, number>>();
+
+      if (pointBreakdownData) {
+        for (const pt of pointBreakdownData) {
+          if (!pointBreakdowns.has(pt.student_id)) {
+            pointBreakdowns.set(pt.student_id, { best_time: 0, avg_time: 0, bonus: 0 });
+          }
+          const breakdown = pointBreakdowns.get(pt.student_id)!;
+          if (pt.point_type === "best_time") {
+            breakdown.best_time += pt.final_points;
+
+            // Track tier counts for typical_tier calculation
+            if (pt.tier_achieved) {
+              if (!tierCounts.has(pt.student_id)) {
+                tierCounts.set(pt.student_id, new Map());
+              }
+              const tierMap = tierCounts.get(pt.student_id)!;
+              tierMap.set(pt.tier_achieved, (tierMap.get(pt.tier_achieved) || 0) + 1);
+            }
+          } else if (pt.point_type === "average_time") {
+            breakdown.avg_time += pt.final_points;
+          } else {
+            breakdown.bonus += pt.final_points;
+          }
+        }
+      }
+
+      // Helper function to find most common tier
+      const getTypicalTier = (studentId: string): string | undefined => {
+        const tierMap = tierCounts.get(studentId);
+        if (!tierMap || tierMap.size === 0) return undefined;
+
+        let maxCount = 0;
+        let mostCommonTier: string | undefined;
+        for (const [tier, count] of tierMap) {
+          if (count > maxCount) {
+            maxCount = count;
+            mostCommonTier = tier;
+          }
+        }
+        return mostCommonTier;
+      };
+
       // Convert to array and sort
       const studentRankingsList: StudentRanking[] = [];
       rank = 1;
       studentMap.forEach((data, studentId) => {
         const careerTimes = careerBestTimes.get(studentId);
+        const breakdown = pointBreakdowns.get(studentId);
         studentRankingsList.push({
           student_id: studentId,
           first_name: data.first_name,
@@ -250,6 +338,11 @@ export default function RankingsPage() {
           rank: rank++,
           best_time: careerTimes?.best_time || null,
           best_average: careerTimes?.best_average || null,
+          badge_count: badgeCounts.get(studentId) || 0,
+          typical_tier: getTypicalTier(studentId),
+          best_time_points: breakdown?.best_time || 0,
+          avg_time_points: breakdown?.avg_time || 0,
+          bonus_points: breakdown?.bonus || 0,
         });
       });
 
@@ -259,6 +352,45 @@ export default function RankingsPage() {
       });
 
       setStudentRankings(studentRankingsList);
+
+      // Fetch top performers (top 10 students by points)
+      const topPerformersData = studentRankingsList
+        .slice(0, 10)
+        .map((student) => ({
+          id: student.student_id,
+          first_name: student.first_name,
+          last_name: student.last_name,
+          grade: `Grade ${student.grade}`,
+          school: student.school_name,
+          total_points: student.total_points,
+          badge_count: student.badge_count || 0,
+        }));
+
+      setTopPerformers(topPerformersData);
+
+      // Fetch recent achievers (latest badges earned)
+      const { data: recentAchievementsData } = await supabase
+        .from("student_achievements")
+        .select(`
+          earned_at,
+          students(id, first_name, last_name),
+          badges(name, icon),
+          competitions(name)
+        `)
+        .order("earned_at", { ascending: false })
+        .limit(10);
+
+      if (recentAchievementsData) {
+        const achievers = recentAchievementsData.map((achievement: any) => ({
+          student_id: achievement.students?.id || "",
+          student_name: `${achievement.students?.first_name} ${achievement.students?.last_name}`,
+          badge_name: achievement.badges?.name || "Achievement",
+          badge_icon: achievement.badges?.icon,
+          earned_at: achievement.earned_at,
+          competition_name: achievement.competitions?.name,
+        }));
+        setRecentAchievers(achievers);
+      }
     } catch (error) {
       console.error("Error fetching rankings:", error);
       toast({
@@ -285,6 +417,18 @@ export default function RankingsPage() {
         <h1 className="text-3xl font-bold text-gray-900">League Rankings</h1>
         <p className="text-gray-500 mt-1">Career standings across all competitions</p>
       </div>
+
+      {/* Top Performers and Recent Achievers Section */}
+      {!loading && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <div>
+            <TopPerformersCarousel performers={topPerformers} />
+          </div>
+          <div>
+            <RecentAchievers achievers={recentAchievers} />
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -440,6 +584,7 @@ export default function RankingsPage() {
                   <TableRow>
                     <TableHead className="w-12">Rank</TableHead>
                     <TableHead>School</TableHead>
+                    <TableHead className="text-center">Division</TableHead>
                     <TableHead className="text-right">Total Points</TableHead>
                     <TableHead className="text-right">Competitions</TableHead>
                   </TableRow>
@@ -451,6 +596,19 @@ export default function RankingsPage() {
                         {getMedalEmoji(school.rank)}
                       </TableCell>
                       <TableCell className="font-medium">{school.school_name}</TableCell>
+                      <TableCell className="text-center">
+                        {school.division ? (
+                          <Badge className={
+                            school.division === 'A' ? 'bg-red-600' :
+                            school.division === 'B' ? 'bg-blue-600' :
+                            'bg-green-600'
+                          }>
+                            Division {school.division}
+                          </Badge>
+                        ) : (
+                          <span className="text-gray-400 text-sm">-</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right font-semibold">
                         {school.total_points.toFixed(1)}
                       </TableCell>
@@ -490,6 +648,8 @@ export default function RankingsPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Grade</TableHead>
                     <TableHead>School</TableHead>
+                    <TableHead className="text-center">Tier</TableHead>
+                    <TableHead className="text-center">Badges</TableHead>
                     <TableHead className="text-right">Best Time</TableHead>
                     <TableHead className="text-right">Best Avg</TableHead>
                     <TableHead className="text-right">Career Points</TableHead>
@@ -514,14 +674,36 @@ export default function RankingsPage() {
                         <Badge variant="outline">Grade {student.grade}</Badge>
                       </TableCell>
                       <TableCell>{student.school_name}</TableCell>
+                      <TableCell className="text-center">
+                        {student.typical_tier ? (
+                          <TierBadge tier={student.typical_tier} size="sm" />
+                        ) : (
+                          <span className="text-gray-400 text-sm">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {student.badge_count > 0 ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <Medal className="h-4 w-4 text-yellow-600" />
+                            <span className="font-semibold">{student.badge_count}</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-sm">-</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right font-mono text-green-600">
                         {student.best_time ? formatTime(student.best_time) : "-"}
                       </TableCell>
                       <TableCell className="text-right font-mono text-blue-600">
                         {student.best_average ? formatTime(student.best_average) : "-"}
                       </TableCell>
-                      <TableCell className="text-right font-semibold">
+                      <TableCell className="text-right font-semibold group relative cursor-help">
                         {student.total_points.toFixed(1)}
+                        <div className="hidden group-hover:block absolute z-10 bg-slate-900 text-white p-3 rounded shadow-lg right-0 top-full mt-2 whitespace-nowrap text-sm">
+                          <p>Best Time: {student.best_time_points.toFixed(1)}</p>
+                          <p>Avg Time: {student.avg_time_points.toFixed(1)}</p>
+                          <p>Bonuses: {student.bonus_points.toFixed(1)}</p>
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge variant="secondary">{student.competitions_count}</Badge>

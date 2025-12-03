@@ -1,5 +1,7 @@
 "use server";
 
+import { createClient } from "@/lib/supabase/server";
+
 /**
  * Complete a competition
  * - Updates competition status to "completed"
@@ -254,7 +256,7 @@ export async function completeCompetition(competitionId: string) {
  * Get competition status
  */
 export async function getCompetitionStatus(competitionId: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: competition, error } = await supabase
     .from("competitions")
@@ -273,7 +275,7 @@ export async function getCompetitionStatus(competitionId: string) {
  * Get competition leaderboard snapshot (final results when completed)
  */
 export async function getCompetitionResults(competitionId: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   try {
     // Get school standings

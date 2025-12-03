@@ -217,7 +217,6 @@ export async function getStudentPointSummary(
       .from('final_scores')
       .select('round_id, rounds!inner(competition_events!inner(event_type_id))')
       .eq('student_id', studentId)
-      .distinct()
 
     const totalComps = new Set(
       (studentComps as any[])?.map((sc) => sc.rounds.competition_events.event_type_id) || []
