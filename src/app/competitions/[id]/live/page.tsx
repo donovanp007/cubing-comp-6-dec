@@ -20,6 +20,8 @@ import { Button } from "@/components/ui/button";
 import { CompetitionSummaryCards } from "@/components/competition-summary-cards";
 import { ChampionshipHighlights } from "@/components/championship-highlights";
 import { FastestByGradeGrid } from "@/components/fastest-by-grade-grid";
+import { SchoolStandingsTable } from "@/components/school-standings-table";
+import { CompletedRoundsPoints } from "@/components/completed-rounds-points";
 
 interface Student {
   id: string;
@@ -79,6 +81,9 @@ export default function CompetitionLivePublicPage({
   const [overallWinner, setOverallWinner] = useState<any>(null);
   const [fastestGirl, setFastestGirl] = useState<any>(null);
   const [fastestByGrade, setFastestByGrade] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<"live" | "overall" | "schools">("live");
+  const [schoolStandings, setSchoolStandings] = useState<any[]>([]);
+  const [completedRoundsData, setCompletedRoundsData] = useState<any[]>([]);
 
   // Load persisted selections from sessionStorage on mount
   useEffect(() => {
@@ -237,6 +242,81 @@ export default function CompetitionLivePublicPage({
           };
         });
         setFastestByGrade(gradeData);
+      }
+
+      // Fetch school standings
+      const { data: standings } = await supabase
+        .from("school_standings")
+        .select("*, schools(id, name, abbreviation, division, color_hex)")
+        .eq("competition_id", competitionId)
+        .order("total_points", { ascending: false });
+
+      setSchoolStandings(standings || []);
+
+      // Fetch completed rounds with points
+      const { data: completedRounds } = await supabase
+        .from("rounds")
+        .select("id, round_name, status")
+        .in("competition_event_id", eventsData?.map((e: any) => e.id) || [])
+        .eq("status", "completed");
+
+      if (completedRounds && completedRounds.length > 0) {
+        const roundsData = await Promise.all(
+          completedRounds.map(async (round) => {
+            const { data: points } = await supabase
+              .from("point_transactions")
+              .select(`
+                student_id,
+                tier_achieved,
+                point_type,
+                final_points,
+                students(first_name, last_name, grade, school)
+              `)
+              .eq("round_id", round.id);
+
+            // Aggregate points by student
+            const aggregated: { [key: string]: any } = {};
+            if (points) {
+              points.forEach((pt: any) => {
+                if (!aggregated[pt.student_id]) {
+                  aggregated[pt.student_id] = {
+                    student_id: pt.student_id,
+                    student_name: `${pt.students?.first_name} ${pt.students?.last_name}`,
+                    grade: pt.students?.grade || "",
+                    school: pt.students?.school || "",
+                    total_points: 0,
+                    tier_achieved: undefined,
+                    pb_bonus: 0,
+                    clutch_bonus: 0,
+                    streak_bonus: 0,
+                  };
+                }
+
+                aggregated[pt.student_id].total_points += pt.final_points;
+                if (pt.point_type === "best_time") {
+                  aggregated[pt.student_id].tier_achieved = pt.tier_achieved;
+                }
+                if (pt.point_type === "pb_bonus") {
+                  aggregated[pt.student_id].pb_bonus = pt.final_points;
+                }
+                if (pt.point_type === "clutch_bonus") {
+                  aggregated[pt.student_id].clutch_bonus = pt.final_points;
+                }
+                if (pt.point_type === "streak_bonus") {
+                  aggregated[pt.student_id].streak_bonus = pt.final_points;
+                }
+              });
+            }
+
+            return {
+              id: round.id,
+              round_name: round.round_name,
+              points: Object.values(aggregated),
+            };
+          })
+        );
+
+        setCompletedRoundsData(roundsData);
       }
 
       // Fetch results if round selected - get live data from results table
@@ -573,8 +653,36 @@ export default function CompetitionLivePublicPage({
           <FastestByGradeGrid data={fastestByGrade} />
         </div>
 
-        {/* Controls */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        {/* Tab Navigation */}
+        <div className="flex gap-2 mb-8 border-b border-slate-700">
+          <Button
+            onClick={() => setActiveTab("live")}
+            variant={activeTab === "live" ? "default" : "ghost"}
+            className={activeTab === "live" ? "border-b-2 border-blue-400" : "text-slate-400"}
+          >
+            Live Round
+          </Button>
+          <Button
+            onClick={() => setActiveTab("overall")}
+            variant={activeTab === "overall" ? "default" : "ghost"}
+            className={activeTab === "overall" ? "border-b-2 border-blue-400" : "text-slate-400"}
+          >
+            Overall Standings
+          </Button>
+          <Button
+            onClick={() => setActiveTab("schools")}
+            variant={activeTab === "schools" ? "default" : "ghost"}
+            className={activeTab === "schools" ? "border-b-2 border-blue-400" : "text-slate-400"}
+          >
+            School Leaderboard
+          </Button>
+        </div>
+
+        {/* Live Tab Content */}
+        {activeTab === "live" && (
+          <>
+            {/* Controls */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           {/* Event Select */}
           <Card className="bg-slate-800 border-slate-700">
             <CardHeader className="pb-3">
@@ -710,54 +818,93 @@ export default function CompetitionLivePublicPage({
           </CardContent>
         </Card>
 
-        {/* Group status */}
-        {groups.length > 0 && (
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Groups Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {groups.map((group) => {
-                  const groupStudents = results.filter((r) => r.group_id === group.id);
-                  const completedStudents = groupStudents.filter(
-                    (r) => r.attempts_completed === 5
-                  ).length;
+            {/* Group status */}
+            {groups.length > 0 && (
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Groups Status
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {groups.map((group) => {
+                      const groupStudents = results.filter((r) => r.group_id === group.id);
+                      const completedStudents = groupStudents.filter(
+                        (r) => r.attempts_completed === 5
+                      ).length;
 
-                  return (
-                    <div key={group.id} className="p-4 rounded-lg bg-slate-700 border border-slate-600">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div
-                          className="w-4 h-4 rounded"
-                          style={{ backgroundColor: group.color_hex }}
-                        />
-                        <p className="text-white font-medium">{group.group_name}</p>
-                      </div>
-                      <p className="text-slate-400 text-sm">
-                        {completedStudents}/{groupStudents.length} completed
-                      </p>
-                      <div className="mt-2 w-full bg-slate-600 rounded h-2">
-                        <div
-                          className="bg-green-500 h-2 rounded transition-all duration-300"
-                          style={{
-                            width: `${groupStudents.length > 0 ? (completedStudents / groupStudents.length) * 100 : 0}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                      return (
+                        <div key={group.id} className="p-4 rounded-lg bg-slate-700 border border-slate-600">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div
+                              className="w-4 h-4 rounded"
+                              style={{ backgroundColor: group.color_hex }}
+                            />
+                            <p className="text-white font-medium">{group.group_name}</p>
+                          </div>
+                          <p className="text-slate-400 text-sm">
+                            {completedStudents}/{groupStudents.length} completed
+                          </p>
+                          <div className="mt-2 w-full bg-slate-600 rounded h-2">
+                            <div
+                              className="bg-green-500 h-2 rounded transition-all duration-300"
+                              style={{
+                                width: `${groupStudents.length > 0 ? (completedStudents / groupStudents.length) * 100 : 0}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
+
+        {/* School Leaderboard Tab */}
+        {activeTab === "schools" && (
+          <SchoolStandingsTable
+            standings={schoolStandings}
+            title="School Leaderboard"
+            description="Team standings and points breakdown"
+          />
+        )}
+
+        {/* Overall Standings Tab */}
+        {activeTab === "overall" && (
+          <>
+            <div className="mb-8">
+              <h3 className="text-white font-bold text-lg mb-4">Completed Rounds Points</h3>
+              <CompletedRoundsPoints rounds={completedRoundsData} />
+            </div>
+
+            <div>
+              <h3 className="text-white font-bold text-lg mb-4">Overall Standings</h3>
+              {schoolStandings.length === 0 ? (
+                <Card className="bg-slate-800 border-slate-700">
+                  <CardContent className="p-8 text-center text-slate-400">
+                    <Trophy className="h-12 w-12 mx-auto text-slate-600 mb-3" />
+                    <p>No competition data yet</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="bg-slate-800 border-slate-700">
+                  <CardContent className="p-4 text-slate-400 text-sm">
+                    Overall standings will be available when all rounds complete. School standings are displayed in the "School Leaderboard" tab.
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </>
         )}
 
         {/* Footer info */}
         <div className="mt-8 text-center text-slate-400 text-sm">
-          <p>This page updates automatically every 5 seconds</p>
+          <p>This page updates automatically every 2 seconds</p>
           <p>Share this URL with parents to show live competition results</p>
         </div>
       </div>
