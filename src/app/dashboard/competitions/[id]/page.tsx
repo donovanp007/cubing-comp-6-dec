@@ -582,6 +582,13 @@ export default function CompetitionDetailPage() {
             Register Students
           </Link>
           <Link
+            href={`/dashboard/competitions/${competitionId}/register/manage`}
+            className="pb-4 px-1 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium whitespace-nowrap flex items-center gap-2"
+          >
+            <Users className="h-4 w-4" />
+            Manage Registrations
+          </Link>
+          <Link
             href={`/dashboard/competitions/${competitionId}/rounds`}
             className="pb-4 px-1 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium whitespace-nowrap"
           >
