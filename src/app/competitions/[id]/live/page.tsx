@@ -17,6 +17,7 @@ import { ArrowLeft, Eye, Trophy, Users, RefreshCw, Share2, Copy, Check } from "l
 import Link from "next/link";
 import { formatTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { PublicNavBar } from "@/components/public-navbar";
 import { CompetitionSummaryCards } from "@/components/competition-summary-cards";
 import { ChampionshipHighlights } from "@/components/championship-highlights";
 import { FastestByGradeGrid } from "@/components/fastest-by-grade-grid";
@@ -590,9 +591,11 @@ export default function CompetitionLivePublicPage({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
+      <PublicNavBar />
+      <div className="p-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
         <div className="mb-8">
           <Link href="/competitions" className="text-blue-400 hover:text-blue-300 flex items-center gap-2 mb-4">
             <ArrowLeft className="h-4 w-4" />
@@ -964,10 +967,11 @@ export default function CompetitionLivePublicPage({
           </>
         )}
 
-        {/* Footer info */}
-        <div className="mt-8 text-center text-slate-400 text-sm">
-          <p>This page updates automatically every 2 seconds</p>
-          <p>Share this URL with parents to show live competition results</p>
+          {/* Footer info */}
+          <div className="mt-8 text-center text-slate-400 text-sm">
+            <p>This page updates automatically every 2 seconds</p>
+            <p>Share this URL with parents to show live competition results</p>
+          </div>
         </div>
       </div>
     </div>

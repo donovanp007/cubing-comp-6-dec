@@ -2,6 +2,8 @@ import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
+  // Just update the session for all routes
+  // Dashboard protection will be handled by the page component
   return await updateSession(request);
 }
 

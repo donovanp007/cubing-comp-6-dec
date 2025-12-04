@@ -1,0 +1,67 @@
+version: "3.9"
+
+services:
+  cubing-hub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cubing-hub-app
+    ports:
+      - "3000:3000"
+    environment:
+      # Node environment
+      NODE_ENV: production
+
+      # Supabase Configuration (Required)
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+
+      # Application URL
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+
+      # Port Configuration
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+
+    # Volume for persistent data (optional)
+    volumes:
+      - app-logs:/app/.next
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+# Named volumes for persistent data
+volumes:
+  app-logs:
+    driver: local
+
+# Network configuration
+networks:
+  default:
+    name: cubing-hub-network
+    driver: bridge

@@ -16,7 +16,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatTime } from "@/lib/utils";
-import { Trophy, Medal, TrendingUp, Calendar, School, GraduationCap, ArrowUpDown } from "lucide-react";
+import { Trophy, Medal, TrendingUp, Calendar, School, GraduationCap, ArrowUpDown, Share2, Copy } from "lucide-react";
+import { PublicNavBar } from "@/components/public-navbar";
 
 interface StudentData {
   id: string;
@@ -51,6 +52,7 @@ export default function PublicStudentProfilePage({
   const [studentRank, setStudentRank] = useState<number | null>(null);
   const [totalStudents, setTotalStudents] = useState(0);
   const [sortBy, setSortBy] = useState<SortOption>("date");
+  const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
     fetchStudentData();
@@ -231,9 +233,32 @@ export default function PublicStudentProfilePage({
     ? Math.min(...competitions.filter(c => c.average_time).map(c => c.average_time!))
     : null;
 
+  const handleShare = async () => {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Navigation */}
+      <PublicNavBar />
+
       <div className="max-w-4xl mx-auto p-6">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-sm text-gray-600 mb-6">
+          <Link href="/" className="hover:text-gray-900">Home</Link>
+          <span>/</span>
+          <Link href="/rankings" className="hover:text-gray-900">Rankings</Link>
+          <span>/</span>
+          <span className="text-gray-900 font-medium">{student.first_name} {student.last_name}</span>
+        </div>
+
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -241,9 +266,22 @@ export default function PublicStudentProfilePage({
               <h1 className="text-4xl font-bold text-gray-900">{student.first_name} {student.last_name}</h1>
               <p className="text-gray-600 mt-2">Grade {student.grade} • {student.school}</p>
             </div>
-            <Link href="/">
-              <Button variant="outline">Back</Button>
-            </Link>
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+            >
+              {copySuccess ? (
+                <>
+                  <Copy className="h-4 w-4" />
+                  <span>Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Share2 className="h-4 w-4" />
+                  <span>Share Profile</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 

@@ -23,6 +23,8 @@ interface StudentRanking {
 export default function PublicRankingsPage() {
   const [students, setStudents] = useState<StudentRanking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [gradeFilter, setGradeFilter] = useState("all");
 
   useEffect(() => {
     fetchRankings();
@@ -130,6 +132,24 @@ export default function PublicRankingsPage() {
     }
   };
 
+  // Filter students based on search and grade
+  const filteredStudents = students.filter((student) => {
+    const matchesSearch =
+      searchQuery === "" ||
+      `${student.first_name} ${student.last_name}`
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+
+    const matchesGrade =
+      gradeFilter === "all" ||
+      (student.grade != null && student.grade.toString() === gradeFilter);
+
+    return matchesSearch && matchesGrade;
+  });
+
+  // Get unique grades for filter dropdown
+  const uniqueGrades = Array.from(new Set(students.filter(s => s.grade != null).map((s) => s.grade))).sort((a, b) => a - b);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500">
       {/* Navigation */}
@@ -228,6 +248,31 @@ export default function PublicRankingsPage() {
         </div>
       </section>
 
+      {/* Search and Filter Section */}
+      <section className="container mx-auto px-4 pb-6">
+        <div className="flex flex-col md:flex-row gap-4">
+          <input
+            type="text"
+            placeholder="🔍 Search for your child..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30 focus:border-white/60 focus:outline-none transition"
+          />
+          <select
+            value={gradeFilter}
+            onChange={(e) => setGradeFilter(e.target.value)}
+            className="px-4 py-3 rounded-lg bg-white/20 text-white border border-white/30 focus:border-white/60 focus:outline-none transition"
+          >
+            <option value="all" className="text-gray-900">All Grades</option>
+            {uniqueGrades.map((grade) => (
+              <option key={grade} value={grade.toString()} className="text-gray-900">
+                Grade {grade}
+              </option>
+            ))}
+          </select>
+        </div>
+      </section>
+
       {/* Rankings Content */}
       <section className="container mx-auto px-4 pb-20">
         <Card className="bg-white/10 backdrop-blur border-white/20">
@@ -237,7 +282,9 @@ export default function PublicRankingsPage() {
               Student Rankings
             </CardTitle>
             <CardDescription className="text-white/60">
-              Top students by points earned across all competitions
+              {filteredStudents.length === 0
+                ? "No students match your search"
+                : `${filteredStudents.length} of ${students.length} students • Click a name to view their profile`}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -268,23 +315,26 @@ export default function PublicRankingsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {students.map((student, index) => (
-                      <tr key={student.student_id} className="border-b border-white/10 hover:bg-white/5 transition">
-                        <td className="py-3 px-2">
-                          {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}`}
-                        </td>
-                        <td className="py-3 px-2">
-                          <Link href={`/students/${student.student_id}`} className="hover:text-yellow-300 transition">
-                            {student.first_name} {student.last_name}
-                          </Link>
-                        </td>
-                        <td className="py-3 px-2">{student.grade}</td>
-                        <td className="py-3 px-2">{student.school_name}</td>
-                        <td className="py-3 px-2 text-right font-bold">{student.total_points}</td>
-                        <td className="py-3 px-2 text-right">{student.best_time ? formatTime(student.best_time) : "—"}</td>
-                        <td className="py-3 px-2 text-right">{student.best_average ? formatTime(student.best_average) : "—"}</td>
-                      </tr>
-                    ))}
+                    {filteredStudents.map((student) => {
+                      const rank = students.indexOf(student) + 1;
+                      return (
+                        <tr key={student.student_id} className="border-b border-white/10 hover:bg-white/5 transition">
+                          <td className="py-3 px-2">
+                            {rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `${rank}`}
+                          </td>
+                          <td className="py-3 px-2">
+                            <Link href={`/students/${student.student_id}`} className="hover:text-yellow-300 transition">
+                              {student.first_name} {student.last_name}
+                            </Link>
+                          </td>
+                          <td className="py-3 px-2">{student.grade}</td>
+                          <td className="py-3 px-2">{student.school_name}</td>
+                          <td className="py-3 px-2 text-right font-bold">{student.total_points}</td>
+                          <td className="py-3 px-2 text-right">{student.best_time ? formatTime(student.best_time) : "—"}</td>
+                          <td className="py-3 px-2 text-right">{student.best_average ? formatTime(student.best_average) : "—"}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

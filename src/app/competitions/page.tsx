@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Trophy, Calendar, MapPin, Users, ArrowRight } from "lucide-react";
+import { PublicNavBar } from "@/components/public-navbar";
 import type { Competition } from "@/lib/types/database.types";
 
 export default function PublicCompetitionsPage() {
@@ -41,29 +42,7 @@ export default function PublicCompetitionsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-500">
       {/* Navigation */}
-      <nav className="container mx-auto px-4 py-6">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="h-10 w-10 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center">
-              <span className="text-2xl">🧊</span>
-            </div>
-            <span className="text-2xl font-bold text-white">Cubing Hub</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/rankings" className="text-white/80 hover:text-white transition">
-              Rankings
-            </Link>
-            <Link href="/results" className="text-white/80 hover:text-white transition">
-              Live Results
-            </Link>
-            <Link href="/login">
-              <Button variant="secondary" className="bg-white/20 text-white hover:bg-white/30 backdrop-blur">
-                Coach Login
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <PublicNavBar />
 
       {/* Hero */}
       <section className="container mx-auto px-4 py-12 text-center">
