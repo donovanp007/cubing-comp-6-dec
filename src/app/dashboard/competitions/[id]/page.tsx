@@ -903,12 +903,20 @@ export default function CompetitionDetailPage() {
                 <CardDescription>{registrations.length} student(s) registered</CardDescription>
               </div>
               {(competition.status === "upcoming" || competition.status === "registration_open") && (
-                <Link href={`/dashboard/competitions/${competitionId}/register`}>
-                  <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
-                    <Plus className="h-4 w-4" />
-                    Batch Register
-                  </Button>
-                </Link>
+                <div className="flex gap-2">
+                  <Link href={`/dashboard/competitions/${competitionId}/register`}>
+                    <Button variant="outline" className="gap-2">
+                      <Plus className="h-4 w-4" />
+                      Add Student
+                    </Button>
+                  </Link>
+                  <Link href={`/dashboard/competitions/${competitionId}/register/bulk`}>
+                    <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
+                      <Users className="h-4 w-4" />
+                      Bulk Register
+                    </Button>
+                  </Link>
+                </div>
               )}
             </div>
           </CardHeader>
