@@ -49,11 +49,20 @@ export default function PublicRankingsPage() {
 
       if (studentData) {
         for (const student of studentData) {
+          let schoolName = "Unknown";
+          const schools = student.schools as any;
+
+          if (Array.isArray(schools) && schools.length > 0) {
+            schoolName = schools[0]?.name || "Unknown";
+          } else if (schools && typeof schools === "object" && "name" in schools) {
+            schoolName = schools.name;
+          }
+
           studentMap.set(student.id, {
             first_name: student.first_name,
             last_name: student.last_name,
             grade: student.grade,
-            school_name: student.schools?.name || "Unknown",
+            school_name: schoolName,
             points: 0,
           });
         }
