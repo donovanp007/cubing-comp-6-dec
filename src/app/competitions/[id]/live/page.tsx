@@ -107,11 +107,11 @@ export default function CompetitionLivePublicPage({
     fetchData();
   }, [competitionId]);
 
-  // Auto-refresh every 2 seconds for real-time sync
+  // Auto-refresh every 2 seconds for real-time sync (light refresh only)
   useEffect(() => {
     if (!selectedEvent || !selectedRound) return;
 
-    const interval = setInterval(fetchData, 2000);
+    const interval = setInterval(fetchResultsOnly, 2000);
     return () => clearInterval(interval);
   }, [selectedEvent, selectedRound]);
 
@@ -146,6 +146,160 @@ export default function CompetitionLivePublicPage({
       );
     }
   }, [selectedEvent, selectedRound, competitionId]);
+
+  // Optimized fetch - only updates results and record status (runs every 2 seconds)
+  const fetchResultsOnly = async () => {
+    if (!selectedRound) return;
+
+    try {
+      if (!loading) setIsRefreshing(true);
+
+      // Fetch only results for the selected round (minimal data)
+      const { data: registrationsData } = await supabase
+        .from("registrations")
+        .select("*, students(id, first_name, last_name, grade)")
+        .eq("competition_id", competitionId);
+
+      if (!registrationsData || registrationsData.length === 0) {
+        setResults([]);
+        setIsRefreshing(false);
+        return;
+      }
+
+      const studentIds = registrationsData.map((r: any) => r.students.id);
+
+      // Get all results for this round
+      const { data: allResults } = await supabase
+        .from("results")
+        .select("student_id, time_milliseconds, is_dnf, attempt_number")
+        .eq("round_id", selectedRound)
+        .in("student_id", studentIds);
+
+      // Get group assignments
+      const { data: assignments } = await supabase
+        .from("group_assignments")
+        .select("student_id, competition_groups(id, group_name)")
+        .eq("competition_id", competitionId)
+        .in("student_id", studentIds);
+
+      // Get personal bests for the current event
+      const { data: personalBestsData } = await supabase
+        .from("personal_bests")
+        .select("student_id, event_type_id, best_single_ms")
+        .in("student_id", studentIds)
+        .eq("event_type_id", selectedEvent);
+
+      // Create lookup maps
+      const assignmentMap = new Map(
+        (assignments || []).map((a: any) => [
+          a.student_id,
+          a.competition_groups?.id || "",
+        ])
+      );
+
+      const pbMap = new Map<string, number>();
+      personalBestsData?.forEach((pb: any) => {
+        pbMap.set(pb.student_id, pb.best_single_ms);
+      });
+
+      // Build a map of student times and all attempts
+      const studentResultsMap = new Map<
+        string,
+        {
+          bestTime: number | null;
+          averageTime: number | null;
+          attempts: number;
+          dnfCount: number;
+          allAttempts: Array<{ time: number | null; is_dnf: boolean }>;
+        }
+      >();
+
+      allResults?.forEach((result: any) => {
+        const studentId = result.student_id;
+        let current = studentResultsMap.get(studentId) || {
+          bestTime: null,
+          averageTime: null,
+          attempts: 0,
+          dnfCount: 0,
+          allAttempts: [],
+        };
+
+        // Track all attempts
+        current.allAttempts.push({
+          time: result.is_dnf ? null : result.time_milliseconds,
+          is_dnf: result.is_dnf,
+        });
+
+        // Track best time (excluding DNF)
+        if (!result.is_dnf && result.time_milliseconds) {
+          current.bestTime = !current.bestTime
+            ? result.time_milliseconds
+            : Math.min(current.bestTime, result.time_milliseconds);
+        }
+
+        current.attempts += 1;
+        if (result.is_dnf) current.dnfCount += 1;
+
+        studentResultsMap.set(studentId, current);
+      });
+
+      // Find competition record (best time across all students in THIS round)
+      let recordTime: number | null = null;
+      studentResultsMap.forEach((stats) => {
+        if (stats.bestTime) {
+          recordTime = recordTime ? Math.min(recordTime, stats.bestTime) : stats.bestTime;
+        }
+      });
+
+      // Build results array with live data
+      const resultsData: Result[] = registrationsData
+        .map((reg: any) => {
+          const studentId = reg.students.id;
+          const stats = studentResultsMap.get(studentId) || {
+            bestTime: null,
+            averageTime: null,
+            attempts: 0,
+            dnfCount: 0,
+            allAttempts: [],
+          };
+
+          // Pad attempts array to show all 5 slots
+          const allAttempts = [...stats.allAttempts];
+          while (allAttempts.length < 5) {
+            allAttempts.push({ time: null, is_dnf: false });
+          }
+
+          return {
+            student_id: studentId,
+            student_name: `${reg.students.first_name} ${reg.students.last_name}`.trim(),
+            group_id: assignmentMap.get(studentId) || "",
+            best_time: stats.bestTime || 0,
+            average_time: stats.averageTime || 0,
+            attempts_completed: stats.attempts,
+            dnf_count: stats.dnfCount,
+            advancement_status: undefined,
+            attempts: allAttempts,
+            // Only mark as record breaker if they have the best time in this round
+            is_record_breaker: !!(recordTime && stats.bestTime && stats.bestTime === recordTime && stats.bestTime > 0),
+            is_personal_best: !!(pbMap.get(studentId) && stats.bestTime && stats.bestTime < (pbMap.get(studentId) || Infinity)),
+          };
+        })
+        .sort((a, b) => {
+          // Sort by best time (students with times first, then by time)
+          if (!a.best_time && !b.best_time) return 0;
+          if (!a.best_time) return 1;
+          if (!b.best_time) return -1;
+          return a.best_time - b.best_time;
+        });
+
+      setResults(resultsData);
+      setLastUpdated(new Date());
+      setIsRefreshing(false);
+    } catch (error) {
+      console.error("Error refreshing results:", error);
+      setIsRefreshing(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
