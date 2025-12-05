@@ -47,8 +47,6 @@ RUN npm ci --only=production && npm cache clean --force
 # Copy built application from build stage
 COPY --from=build --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=build --chown=nextjs:nodejs /app/public ./public
-COPY --from=build --chown=nextjs:nodejs /app/next.config.ts ./
-COPY --from=build --chown=nextjs:nodejs /app/src ./src
 
 # Create health check file
 RUN mkdir -p /app/public && echo "OK" > /app/public/health && chmod 644 /app/public/health
@@ -83,5 +81,5 @@ EXPOSE 3000
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
-# Start application
-CMD ["npm", "run", "start"]
+# Start application (using standalone server for better performance)
+CMD ["node", ".next/standalone/server.js"]
