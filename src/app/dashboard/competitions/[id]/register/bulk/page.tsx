@@ -188,7 +188,7 @@ export default function BulkRegisterPage() {
       const selectedStudents = allStudents.filter((s) => selectedStudentIds.has(s.id));
       const registrations = selectedStudents.map((student) => ({
         studentId: student.id,
-        eventIds: Array.from(studentEventMap.get(student.id) || new Set()),
+        eventIds: Array.from(studentEventMap.get(student.id) || new Set()) as string[],
       }));
 
       const studentNames = Object.fromEntries(
