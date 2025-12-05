@@ -230,7 +230,7 @@ export default function CompetitionGroupsPage({
 
       // Upsert assignments (will update if already exists)
       const { error: assignError } = await supabase.from("group_assignments").upsert(assignments, {
-        onConflict: "student_id,competition_id",
+        onConflict: "competition_id,student_id",
       });
 
       if (assignError) throw assignError;
