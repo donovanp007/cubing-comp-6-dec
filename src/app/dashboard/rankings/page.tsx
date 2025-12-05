@@ -64,9 +64,14 @@ export default function RankingsPage() {
 
       if (studentData) {
         for (const student of studentData) {
-          const schoolName = Array.isArray(student.schools)
-            ? student.schools[0]?.name
-            : student.schools?.name || "Unknown School";
+          let schoolName = "Unknown School";
+          const schools = student.schools as any;
+
+          if (Array.isArray(schools) && schools.length > 0) {
+            schoolName = schools[0]?.name || "Unknown School";
+          } else if (schools && typeof schools === "object" && "name" in schools) {
+            schoolName = schools.name;
+          }
 
           studentMap.set(student.id, {
             first_name: student.first_name,
