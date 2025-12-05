@@ -312,6 +312,11 @@ export default function CompetitionLivePublicPage({
       setError(null);
       if (!loading) setIsRefreshing(true);
 
+      // Clear championship data on each fetch - will only refill if competition is completed
+      setOverallWinner(null);
+      setFastestGirl(null);
+      setFastestByGrade([]);
+
       // Fetch competition
       const { data: comp, error: compError } = await supabase
         .from("competitions")
@@ -352,59 +357,61 @@ export default function CompetitionLivePublicPage({
         setGroups(groupsData || []);
       }
 
-      // Fetch championship highlights and fastest by grade (only for this competition)
-      const { data: allFinalScores } = await supabase
-        .from("final_scores")
-        .select(`
-          best_time_milliseconds,
-          students(id, first_name, last_name, grade, school, gender),
-          rounds(competition_event_id, competition_id)
-        `)
-        .eq("rounds.competition_id", competitionId)
-        .in("rounds.competition_event_id", eventsData?.map((e: any) => e.id) || [])
-        .not("best_time_milliseconds", "is", null)
-        .order("best_time_milliseconds", { ascending: true });
+      // Fetch championship highlights and fastest by grade (ONLY if competition is completed)
+      if (comp.status === "completed") {
+        const { data: allFinalScores } = await supabase
+          .from("final_scores")
+          .select(`
+            best_time_milliseconds,
+            students(id, first_name, last_name, grade, school, gender),
+            rounds(competition_event_id, competition_id)
+          `)
+          .eq("rounds.competition_id", competitionId)
+          .in("rounds.competition_event_id", eventsData?.map((e: any) => e.id) || [])
+          .not("best_time_milliseconds", "is", null)
+          .order("best_time_milliseconds", { ascending: true });
 
-      if (allFinalScores && allFinalScores.length > 0) {
-        const scores = allFinalScores as any[];
-        // Overall winner (fastest across all events)
-        const winner = scores[0];
-        setOverallWinner(winner?.students ? {
-          id: winner.students.id,
-          first_name: winner.students.first_name,
-          last_name: winner.students.last_name,
-          grade: winner.students.grade,
-          school: winner.students.school,
-          best_time_milliseconds: winner.best_time_milliseconds,
-        } : null);
+        if (allFinalScores && allFinalScores.length > 0) {
+          const scores = allFinalScores as any[];
+          // Overall winner (fastest across all events)
+          const winner = scores[0];
+          setOverallWinner(winner?.students ? {
+            id: winner.students.id,
+            first_name: winner.students.first_name,
+            last_name: winner.students.last_name,
+            grade: winner.students.grade,
+            school: winner.students.school,
+            best_time_milliseconds: winner.best_time_milliseconds,
+          } : null);
 
-        // Fastest girl (fastest female competitor)
-        const girl = scores.find((f: any) => f.students?.gender === "female");
-        setFastestGirl(girl?.students ? {
-          id: girl.students.id,
-          first_name: girl.students.first_name,
-          last_name: girl.students.last_name,
-          grade: girl.students.grade,
-          school: girl.students.school,
-          best_time_milliseconds: girl.best_time_milliseconds,
-        } : null);
+          // Fastest girl (fastest female competitor)
+          const girl = scores.find((f: any) => f.students?.gender === "female");
+          setFastestGirl(girl?.students ? {
+            id: girl.students.id,
+            first_name: girl.students.first_name,
+            last_name: girl.students.last_name,
+            grade: girl.students.grade,
+            school: girl.students.school,
+            best_time_milliseconds: girl.best_time_milliseconds,
+          } : null);
 
-        // Fastest by grade (Grade 1-7)
-        const gradeData = [1, 2, 3, 4, 5, 6, 7].map((grade) => {
-          const gradeKey = `Grade ${grade}`;
-          const fastest = scores.find((f: any) => f.students?.grade === gradeKey);
-          return {
-            grade,
-            student: fastest?.students ? {
-              id: fastest.students.id,
-              first_name: fastest.students.first_name,
-              last_name: fastest.students.last_name,
-              school: fastest.students.school,
-              best_time_milliseconds: fastest.best_time_milliseconds,
-            } : null,
-          };
-        });
-        setFastestByGrade(gradeData);
+          // Fastest by grade (Grade 1-7)
+          const gradeData = [1, 2, 3, 4, 5, 6, 7].map((grade) => {
+            const gradeKey = `Grade ${grade}`;
+            const fastest = scores.find((f: any) => f.students?.grade === gradeKey);
+            return {
+              grade,
+              student: fastest?.students ? {
+                id: fastest.students.id,
+                first_name: fastest.students.first_name,
+                last_name: fastest.students.last_name,
+                school: fastest.students.school,
+                best_time_milliseconds: fastest.best_time_milliseconds,
+              } : null,
+            };
+          });
+          setFastestByGrade(gradeData);
+        }
       }
 
       // Fetch school standings using sequential pattern (no nested joins)
