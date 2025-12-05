@@ -341,7 +341,7 @@ export default function RankingsPage() {
                         {Math.round(student.total_points)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {student.badge_count > 0 ? (
+                        {(student.badge_count ?? 0) > 0 ? (
                           <div className="flex items-center justify-center gap-1">
                             <Medal className="h-4 w-4 text-yellow-600" />
                             <span className="font-semibold">{student.badge_count}</span>
