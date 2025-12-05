@@ -53,44 +53,24 @@ export function parseTimeInput(input: string): number {
     return num * 10;
   }
 
-  // 5 digits: could be m:ss.cc OR ss.mmm
-  // Check if msscc format would give valid seconds (0-59)
+  // 5 digits: ss.mmm format (seconds with milliseconds)
+  // 27344 → 27.344 seconds → 27344ms
   if (digits.length === 5) {
-    const possibleSeconds = Math.floor((num % 10000) / 100);
-
-    if (possibleSeconds <= 59) {
-      // Valid m:ss.cc format (12345 → 1:23.45 → 83450ms)
-      const centiseconds = num % 100;
-      const seconds = possibleSeconds;
-      const minutes = Math.floor(num / 10000);
-      return (minutes * 60000) + (seconds * 1000) + (centiseconds * 10);
-    } else {
-      // Invalid as m:ss.cc, interpret as ss.mmm (27344 → 27.344 → 27344ms)
-      const milliseconds = num % 1000;
-      const seconds = Math.floor(num / 1000);
-      return (seconds * 1000) + milliseconds;
-    }
+    const milliseconds = num % 1000;
+    const seconds = Math.floor(num / 1000);
+    return (seconds * 1000) + milliseconds;
   }
 
-  // 6+ digits: could be mm:ss.cc or m:ss.mmm
-  // Check if mmsscc format would give valid seconds (0-59)
-  const mmssccSeconds = Math.floor((num % 10000) / 100);
-
-  if (digits.length === 6 && mmssccSeconds <= 59) {
-    // Valid mmsscc format (12:34.56 → 754560ms)
-    const centiseconds = num % 100;
-    const seconds = mmssccSeconds;
-    const minutes = Math.floor(num / 10000);
-    return (minutes * 60000) + (seconds * 1000) + (centiseconds * 10);
-  } else if (digits.length === 6) {
-    // Invalid as mmsscc, interpret as m:ss.mmm with milliseconds (1:16.039 → 76039ms)
+  // 6 digits: m:ss.mmm format (minute|seconds|milliseconds)
+  // 152258 → 1:52.258 → 112258ms
+  if (digits.length === 6) {
     const milliseconds = num % 1000;
     const seconds = Math.floor((num % 100000) / 1000);
     const minutes = Math.floor(num / 100000);
     return (minutes * 60000) + (seconds * 1000) + milliseconds;
   }
 
-  // 7+ digits: mm:ss.mmm format
+  // 7+ digits: mm:ss.mmm format (minutes|seconds|milliseconds)
   const milliseconds = num % 1000;
   const seconds = Math.floor((num % 100000) / 1000);
   const minutes = Math.floor(num / 100000);
@@ -98,25 +78,25 @@ export function parseTimeInput(input: string): number {
 }
 
 /**
- * Format milliseconds to display time (e.g., "12.34" or "1:23.45")
+ * Format milliseconds to display time (e.g., "12.345" or "1:23.456")
+ * Displays with 3 decimal places (milliseconds)
  */
 export function formatTime(ms: number | null): string {
   if (ms === null || ms === undefined) return "-";
 
-  const totalCentiseconds = Math.floor(ms / 10);
-  const centiseconds = totalCentiseconds % 100;
-  const totalSeconds = Math.floor(totalCentiseconds / 100);
+  const milliseconds = Math.floor(ms) % 1000;
+  const totalSeconds = Math.floor(ms / 1000);
   const seconds = totalSeconds % 60;
   const minutes = Math.floor(totalSeconds / 60);
 
-  const cs = centiseconds.toString().padStart(2, '0');
+  const mmm = milliseconds.toString().padStart(3, '0');
 
   if (minutes > 0) {
     const s = seconds.toString().padStart(2, '0');
-    return `${minutes}:${s}.${cs}`;
+    return `${minutes}:${s}.${mmm}`;
   }
 
-  return `${seconds}.${cs}`;
+  return `${seconds}.${mmm}`;
 }
 
 /**
