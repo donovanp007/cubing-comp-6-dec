@@ -162,17 +162,23 @@ export async function checkSchoolMomentumBonus(
 ): Promise<boolean> {
   const supabase = createClient()
 
+  // Get all student IDs from this school
+  const { data: students } = await supabase
+    .from('students')
+    .select('id')
+    .eq('school_id', schoolId)
+
+  if (!students || students.length === 0) {
+    return false // No students from school
+  }
+
+  const studentIds = students.map(s => s.id)
+
   // Get all students from this school who participated in this round
   const { data: schoolResults, error } = await supabase
     .from('results')
     .select('student_id, is_dnf')
-    .in(
-      'student_id',
-      supabase
-        .from('students')
-        .select('id')
-        .eq('school_id', schoolId)
-    )
+    .in('student_id', studentIds)
     .eq('round_id', roundId)
 
   if (error) {
