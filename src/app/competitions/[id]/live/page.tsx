@@ -817,32 +817,7 @@ export default function CompetitionLivePublicPage({
           </CardContent>
         </Card>
 
-        {/* Competition Summary Cards */}
-        <div className="text-slate-300 mb-8">
-          <CompetitionSummaryCards
-            summary={{
-              date: undefined,
-              location: undefined,
-              totalEvents: events.length,
-              totalParticipants: results.length,
-            }}
-          />
-        </div>
-
-        {/* Championship Highlights */}
-        <div className="mb-8">
-          <ChampionshipHighlights
-            overallWinner={overallWinner}
-            fastestGirl={fastestGirl}
-          />
-        </div>
-
-        {/* Fastest by Grade Grid */}
-        <div className="mb-8 text-slate-300">
-          <FastestByGradeGrid data={fastestByGrade} />
-        </div>
-
-        {/* Tab Navigation */}
+        {/* Tab Navigation - MOVED TO TOP */}
         <div className="flex gap-2 mb-8 border-b border-slate-700">
           <Button
             onClick={() => setActiveTab("live")}
@@ -867,7 +842,7 @@ export default function CompetitionLivePublicPage({
           </Button>
         </div>
 
-        {/* Live Tab Content */}
+        {/* Live Tab Content - MOVED TO TOP */}
         {activeTab === "live" && (
           <>
             {/* Controls */}
@@ -1123,6 +1098,109 @@ export default function CompetitionLivePublicPage({
                   </CardContent>
                 </Card>
               )}
+            </div>
+          </>
+        )}
+
+        {/* School Leaderboard Tab */}
+        {activeTab === "schools" && (
+          <SchoolStandingsTable
+            standings={schoolStandings}
+            title="School Leaderboard"
+            description="Team standings and points breakdown"
+          />
+        )}
+
+        {/* Overall Tab Content */}
+        {activeTab === "overall" && (
+          <>
+            <div className="mb-8">
+              <h3 className="text-white font-bold text-lg mb-4">Completed Rounds Points</h3>
+              <CompletedRoundsPoints rounds={completedRoundsData} />
+            </div>
+
+            <div>
+              <h3 className="text-white font-bold text-lg mb-4">Overall Student Rankings (All Times)</h3>
+              {results.length === 0 ? (
+                <Card className="bg-slate-800 border-slate-700">
+                  <CardContent className="p-8 text-center text-slate-400">
+                    <Trophy className="h-12 w-12 mx-auto text-slate-600 mb-3" />
+                    <p>No results yet</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="bg-slate-800 border-slate-700">
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-b border-slate-700">
+                            <TableHead className="text-white w-12">Rank</TableHead>
+                            <TableHead className="text-white">Student</TableHead>
+                            <TableHead className="text-white text-right">Best Time</TableHead>
+                            <TableHead className="text-white text-right">Best Avg</TableHead>
+                            <TableHead className="text-white text-right">Competitions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {results
+                            .sort((a, b) => {
+                              const timeA = a.best_time || Infinity;
+                              const timeB = b.best_time || Infinity;
+                              return timeA - timeB;
+                            })
+                            .slice(0, 20)
+                            .map((student, idx) => (
+                              <TableRow key={student.student_id} className="border-b border-slate-700 hover:bg-slate-700/50">
+                                <TableCell className="text-white font-bold w-12">
+                                  {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`}
+                                </TableCell>
+                                <TableCell className="text-white">{student.student_name}</TableCell>
+                                <TableCell className="text-right font-mono text-green-400">
+                                  {student.best_time ? formatTime(student.best_time) : "—"}
+                                </TableCell>
+                                <TableCell className="text-right font-mono text-blue-400">
+                                  {student.average_time ? formatTime(student.average_time) : "—"}
+                                </TableCell>
+                                <TableCell className="text-right text-slate-300">{student.attempts_completed}</TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Championship Highlights - ONLY SHOW WHEN COMPETITION IS COMPLETED */}
+        {competition.status === "completed" && (
+          <>
+            {/* Competition Summary Cards */}
+            <div className="text-slate-300 mb-8 mt-8">
+              <CompetitionSummaryCards
+                summary={{
+                  date: undefined,
+                  location: undefined,
+                  totalEvents: events.length,
+                  totalParticipants: results.length,
+                }}
+              />
+            </div>
+
+            {/* Championship Highlights */}
+            <div className="mb-8">
+              <ChampionshipHighlights
+                overallWinner={overallWinner}
+                fastestGirl={fastestGirl}
+              />
+            </div>
+
+            {/* Fastest by Grade Grid */}
+            <div className="mb-8 text-slate-300">
+              <FastestByGradeGrid data={fastestByGrade} />
             </div>
           </>
         )}
