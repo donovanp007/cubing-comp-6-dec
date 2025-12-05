@@ -309,8 +309,7 @@ export function RegistrationTable({
                     <TableHead className="w-12">
                       <Checkbox
                         checked={allFilteredSelected}
-                        indeterminate={someFilteredSelected && !allFilteredSelected}
-                        onChange={toggleAllFiltered}
+                        onCheckedChange={toggleAllFiltered}
                       />
                     </TableHead>
                     <TableHead>Student Name</TableHead>
