@@ -44,8 +44,9 @@ COPY --from=build --chown=nextjs:nodejs /app/package*.json ./
 # Install production dependencies only
 RUN npm ci --only=production && npm cache clean --force
 
-# Copy built application from build stage
-COPY --from=build --chown=nextjs:nodejs /app/.next ./.next
+# Copy built application from build stage (standalone includes everything needed)
+COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=build --chown=nextjs:nodejs /app/public ./public
 
 # ============================================================================
@@ -71,5 +72,5 @@ EXPOSE 3000
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
-# Start application (using standalone server for better performance)
-CMD ["node", ".next/standalone/server.js"]
+# Start standalone Next.js server
+CMD ["node", "server.js"]
