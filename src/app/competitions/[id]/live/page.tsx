@@ -115,6 +115,12 @@ export default function CompetitionLivePublicPage({
     return () => clearInterval(interval);
   }, [selectedEvent, selectedRound]);
 
+  // Immediately fetch results when round selection changes
+  useEffect(() => {
+    if (!selectedRound) return;
+    fetchResultsOnly();
+  }, [selectedRound]);
+
   // Refetch rounds when selected event changes
   useEffect(() => {
     if (!selectedEvent) return;
