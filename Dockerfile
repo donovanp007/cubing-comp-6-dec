@@ -62,13 +62,6 @@ ENV PORT=3000
 # ENV NEXT_PUBLIC_SUPABASE_URL=https://your-supabase-url.supabase.co
 # ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
-# ============================================================================
-# Health Check
-# ============================================================================
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/ || exit 1
-
 # Switch to non-root user
 USER nextjs
 
