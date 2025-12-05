@@ -3,7 +3,7 @@
 # ============================================================================
 
 # Build stage - compiles Next.js application
-FROM node:18-alpine AS build
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
@@ -27,7 +27,7 @@ RUN npm run build
 # Production stage - minimal runtime image
 # ============================================================================
 
-FROM node:18-alpine AS production
+FROM node:20-alpine AS production
 
 WORKDIR /app
 
@@ -48,9 +48,6 @@ RUN npm ci --only=production && npm cache clean --force
 COPY --from=build --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=build --chown=nextjs:nodejs /app/public ./public
 
-# Create health check file
-RUN mkdir -p /app/public && echo "OK" > /app/public/health && chmod 644 /app/public/health
-
 # ============================================================================
 # Environment Configuration
 # ============================================================================
@@ -69,8 +66,8 @@ ENV PORT=3000
 # Health Check
 # ============================================================================
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/ || exit 1
 
 # Switch to non-root user
 USER nextjs
