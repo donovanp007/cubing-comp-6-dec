@@ -352,14 +352,15 @@ export default function CompetitionLivePublicPage({
         setGroups(groupsData || []);
       }
 
-      // Fetch championship highlights and fastest by grade
+      // Fetch championship highlights and fastest by grade (only for this competition)
       const { data: allFinalScores } = await supabase
         .from("final_scores")
         .select(`
           best_time_milliseconds,
           students(id, first_name, last_name, grade, school, gender),
-          rounds(competition_event_id)
+          rounds(competition_event_id, competition_id)
         `)
+        .eq("rounds.competition_id", competitionId)
         .in("rounds.competition_event_id", eventsData?.map((e: any) => e.id) || [])
         .not("best_time_milliseconds", "is", null)
         .order("best_time_milliseconds", { ascending: true });
