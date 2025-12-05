@@ -7,9 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Users, Plus, Trash2, Check, X } from "lucide-react";
+import { ArrowLeft, Users, Plus, Trash2, Check, X, Edit2 } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface Student {
   id: string;
@@ -228,10 +229,19 @@ export default function CompetitionGroupsPage({
         group_id: selectedGroupForAssignment,
       }));
 
-      // Upsert assignments (will update if already exists)
-      const { error: assignError } = await supabase.from("group_assignments").upsert(assignments, {
-        onConflict: "competition_id,student_id",
-      });
+      // Delete existing assignments for these students first
+      const { error: deleteError } = await supabase
+        .from("group_assignments")
+        .delete()
+        .eq("competition_id", competitionId)
+        .in("student_id", Array.from(selectedStudents));
+
+      if (deleteError) throw deleteError;
+
+      // Insert new assignments
+      const { error: assignError } = await supabase
+        .from("group_assignments")
+        .insert(assignments);
 
       if (assignError) throw assignError;
 
@@ -294,6 +304,34 @@ export default function CompetitionGroupsPage({
 
   const clearSelection = () => {
     setSelectedStudents(new Set());
+  };
+
+  const updateGroupColor = async (groupId: string, newColorHex: string, newColorName: string) => {
+    try {
+      const { error } = await supabase
+        .from("competition_groups")
+        .update({
+          color_hex: newColorHex,
+          color_name: newColorName,
+        })
+        .eq("id", groupId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Group color updated",
+      });
+
+      await fetchData();
+    } catch (error) {
+      console.error("Error updating group color:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update group color",
+        variant: "destructive",
+      });
+    }
   };
 
   if (loading) {
@@ -487,10 +525,35 @@ export default function CompetitionGroupsPage({
                   <CardHeader style={{ borderLeftColor: group.color_hex, borderLeftWidth: "4px" }}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div
-                          className="w-5 h-5 rounded"
-                          style={{ backgroundColor: group.color_hex }}
-                        />
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              className="w-5 h-5 rounded cursor-pointer hover:opacity-80 transition"
+                              style={{ backgroundColor: group.color_hex }}
+                              title="Click to change color"
+                            />
+                          </PopoverTrigger>
+                          <PopoverContent className="w-56 p-4">
+                            <div className="space-y-3">
+                              <p className="text-sm font-medium">Choose a color</p>
+                              <div className="grid grid-cols-4 gap-2">
+                                {GROUP_COLORS.map((color) => (
+                                  <button
+                                    key={color.hex}
+                                    className="w-10 h-10 rounded border-2 transition hover:scale-110"
+                                    style={{
+                                      backgroundColor: color.hex,
+                                      borderColor: group.color_hex === color.hex ? "#000" : "#ccc",
+                                      borderWidth: group.color_hex === color.hex ? "2px" : "1px",
+                                    }}
+                                    onClick={() => updateGroupColor(group.id, color.hex, color.name)}
+                                    title={color.name}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                         <CardTitle>{group.group_name}</CardTitle>
                         <Badge variant="secondary" className="text-lg">
                           {group.students.length}
