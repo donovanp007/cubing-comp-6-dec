@@ -7,14 +7,21 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * Parse time input and convert to milliseconds
- * Format: SS.CC (Seconds.Centiseconds) - Stackmat timer format
+ * Format: Stackmat timer format (centiseconds, 2 decimal places)
  * Supports various input formats:
- * - "90" → 0.90 seconds → 900ms
- * - "1234" → 12.34 seconds → 12340ms
- * - "10123" → 1:01.23 → 61230ms
- * - "125252" → 12:52.52 → 772520ms
- * - "1:23.45" → 1 minute 23.45 seconds → 83450ms
- * - "45.67" → 45.67 seconds → 45670ms
+ * - 1-2 digits: seconds only
+ *   - "5" → 5 seconds → 5000ms
+ *   - "32" → 32 seconds → 32000ms
+ * - 3-4 digits: SS.CC
+ *   - "1234" → 12.34 seconds → 12340ms
+ *   - "975" → 9.75 seconds → 9750ms
+ * - 5 digits: M:SS.CC
+ *   - "43222" → 4:32.22 → 272220ms
+ * - 6+ digits: MM:SS.CC
+ *   - "123456" → 12:34.56 → 754560ms
+ * - Formatted input with colons/dots:
+ *   - "1:23.45" → 1:23.45 → 83450ms
+ *   - "45.67" → 45.67 → 45670ms
  */
 export function parseTimeInput(input: string): number {
   if (!input || input.trim().length === 0) return 0;
@@ -48,9 +55,10 @@ export function parseTimeInput(input: string): number {
   let minutes = 0;
 
   if (digits.length === 1 || digits.length === 2) {
-    // 1-2 digits: CS (centiseconds only)
-    // 90 → 0.90 seconds
-    centiseconds = parseInt(digits, 10);
+    // 1-2 digits: S or SS (seconds only)
+    // 5 → 5 seconds
+    // 32 → 32 seconds
+    seconds = parseInt(digits, 10);
   } else if (digits.length === 3 || digits.length === 4) {
     // 3-4 digits: SS.CC
     // 1234 → 12.34 seconds
@@ -75,8 +83,10 @@ export function parseTimeInput(input: string): number {
 }
 
 /**
- * Format milliseconds to display time (e.g., "12.34" or "1:23.45")
- * Displays with 2 decimal places (centiseconds) - Stackmat timer format
+ * Format milliseconds to display time in Stackmat format
+ * Displays with 2 decimal places (centiseconds)
+ * - Under 1 minute: "SS.CC" (e.g., "12.34", "9.75")
+ * - 1 minute or more: "M:SS.CC" (e.g., "1:32.22", "4:32.22")
  */
 export function formatTime(ms: number | null): string {
   if (ms === null || ms === undefined) return "-";
