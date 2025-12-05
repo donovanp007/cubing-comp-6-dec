@@ -64,11 +64,15 @@ export default function RankingsPage() {
 
       if (studentData) {
         for (const student of studentData) {
+          const schoolName = Array.isArray(student.schools)
+            ? student.schools[0]?.name
+            : student.schools?.name || "Unknown School";
+
           studentMap.set(student.id, {
             first_name: student.first_name,
             last_name: student.last_name,
             grade: student.grade,
-            school_name: student.schools?.name || "Unknown School",
+            school_name: schoolName,
             points: 0,
           });
         }
