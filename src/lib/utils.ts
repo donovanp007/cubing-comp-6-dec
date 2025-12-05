@@ -7,11 +7,12 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * Parse time input and convert to milliseconds
+ * Format: SS.CC (Seconds.Centiseconds) - Stackmat timer format
  * Supports various input formats:
  * - "90" → 0.90 seconds → 900ms
  * - "1234" → 12.34 seconds → 12340ms
- * - "12345" → 1:23.45 → 83450ms
- * - "123456" → 12:34.56 → 754560ms
+ * - "10123" → 1:01.23 → 61230ms
+ * - "125252" → 12:52.52 → 772520ms
  * - "1:23.45" → 1 minute 23.45 seconds → 83450ms
  * - "45.67" → 45.67 seconds → 45670ms
  */
@@ -36,67 +37,67 @@ export function parseTimeInput(input: string): number {
     return Math.round((minutes * 60 + seconds) * 1000);
   }
 
-  // Existing raw number logic
+  // Raw number handling - treat as centiseconds format (SS.CC)
+  // Last 2 digits are ALWAYS centiseconds, working backwards
   const digits = input.replace(/\D/g, '');
 
   if (digits.length === 0) return 0;
 
-  const num = parseInt(digits, 10);
+  let centiseconds = 0;
+  let seconds = 0;
+  let minutes = 0;
 
-  // 1-2 digits: centiseconds (90 → 0.90s → 900ms)
-  if (digits.length <= 2) {
-    return num * 10;
+  if (digits.length === 1 || digits.length === 2) {
+    // 1-2 digits: CS (centiseconds only)
+    // 90 → 0.90 seconds
+    centiseconds = parseInt(digits, 10);
+  } else if (digits.length === 3 || digits.length === 4) {
+    // 3-4 digits: SS.CC
+    // 1234 → 12.34 seconds
+    centiseconds = parseInt(digits.slice(-2), 10);
+    seconds = parseInt(digits.slice(0, -2), 10);
+  } else if (digits.length === 5) {
+    // 5 digits: M|SS|CC
+    // 10123 → 1:01.23
+    centiseconds = parseInt(digits.slice(-2), 10);
+    seconds = parseInt(digits.slice(-4, -2), 10);
+    minutes = parseInt(digits.slice(0, -4), 10);
+  } else {
+    // 6+ digits: MM|SS|CC
+    // 125252 → 12:52.52
+    centiseconds = parseInt(digits.slice(-2), 10);
+    seconds = parseInt(digits.slice(-4, -2), 10);
+    minutes = parseInt(digits.slice(0, -4), 10);
   }
 
-  // 3-4 digits: seconds.centiseconds (1234 → 12.34s → 12340ms)
-  if (digits.length <= 4) {
-    return num * 10;
-  }
-
-  // 5 digits: ss.mmm format (seconds with milliseconds)
-  // 27344 → 27.344 seconds → 27344ms
-  if (digits.length === 5) {
-    const milliseconds = num % 1000;
-    const seconds = Math.floor(num / 1000);
-    return (seconds * 1000) + milliseconds;
-  }
-
-  // 6 digits: m:ss.mmm format (minute|seconds|milliseconds)
-  // 152258 → 1:52.258 → 112258ms
-  if (digits.length === 6) {
-    const milliseconds = num % 1000;
-    const seconds = Math.floor((num % 100000) / 1000);
-    const minutes = Math.floor(num / 100000);
-    return (minutes * 60000) + (seconds * 1000) + milliseconds;
-  }
-
-  // 7+ digits: mm:ss.mmm format (minutes|seconds|milliseconds)
-  const milliseconds = num % 1000;
-  const seconds = Math.floor((num % 100000) / 1000);
-  const minutes = Math.floor(num / 100000);
-  return (minutes * 60000) + (seconds * 1000) + milliseconds;
+  // Convert to milliseconds: centiseconds * 10 = milliseconds
+  return (minutes * 60 * 1000) + (seconds * 1000) + (centiseconds * 10);
 }
 
 /**
- * Format milliseconds to display time (e.g., "12.345" or "1:23.456")
- * Displays with 3 decimal places (milliseconds)
+ * Format milliseconds to display time (e.g., "12.34" or "1:23.45")
+ * Displays with 2 decimal places (centiseconds) - Stackmat timer format
  */
 export function formatTime(ms: number | null): string {
   if (ms === null || ms === undefined) return "-";
 
-  const milliseconds = Math.floor(ms) % 1000;
-  const totalSeconds = Math.floor(ms / 1000);
+  const totalMs = Math.floor(ms);
+
+  // Extract centiseconds (hundredths of a second: 0-99)
+  const centiseconds = Math.floor((totalMs % 1000) / 10);
+
+  const totalSeconds = Math.floor(totalMs / 1000);
   const seconds = totalSeconds % 60;
   const minutes = Math.floor(totalSeconds / 60);
 
-  const mmm = milliseconds.toString().padStart(3, '0');
+  const cc = centiseconds.toString().padStart(2, '0');
 
   if (minutes > 0) {
     const s = seconds.toString().padStart(2, '0');
-    return `${minutes}:${s}.${mmm}`;
+    return `${minutes}:${s}.${cc}`;
   }
 
-  return `${seconds}.${mmm}`;
+  return `${seconds}.${cc}`;
 }
 
 /**
