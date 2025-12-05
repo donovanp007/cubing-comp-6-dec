@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  swcMinify: true,
 
   // Security: Restrict image sources to Supabase only
   images: {
