@@ -317,7 +317,7 @@ export default function LiveDisplayPage() {
                 {/* Avg per student */}
                 <div className="text-right min-w-max">
                   <div className="text-2xl font-bold text-green-400">
-                    {standing.average_points_per_student.toFixed(1)}
+                    {(standing.total_points / standing.total_students).toFixed(1)}
                   </div>
                   <p className="text-sm text-gray-400">avg/student</p>
                 </div>
