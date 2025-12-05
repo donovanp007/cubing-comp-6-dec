@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Users, Plus, Trash2, Check, X, Edit2 } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Student {
   id: string;
@@ -58,6 +58,8 @@ export default function CompetitionGroupsPage({
   const [competition, setCompetition] = useState<any>(null);
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [selectedGroupForAssignment, setSelectedGroupForAssignment] = useState<string>("");
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [colorPickerGroupId, setColorPickerGroupId] = useState<string>("");
 
   useEffect(() => {
     fetchData();
@@ -525,35 +527,15 @@ export default function CompetitionGroupsPage({
                   <CardHeader style={{ borderLeftColor: group.color_hex, borderLeftWidth: "4px" }}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <button
-                              className="w-5 h-5 rounded cursor-pointer hover:opacity-80 transition"
-                              style={{ backgroundColor: group.color_hex }}
-                              title="Click to change color"
-                            />
-                          </PopoverTrigger>
-                          <PopoverContent className="w-56 p-4">
-                            <div className="space-y-3">
-                              <p className="text-sm font-medium">Choose a color</p>
-                              <div className="grid grid-cols-4 gap-2">
-                                {GROUP_COLORS.map((color) => (
-                                  <button
-                                    key={color.hex}
-                                    className="w-10 h-10 rounded border-2 transition hover:scale-110"
-                                    style={{
-                                      backgroundColor: color.hex,
-                                      borderColor: group.color_hex === color.hex ? "#000" : "#ccc",
-                                      borderWidth: group.color_hex === color.hex ? "2px" : "1px",
-                                    }}
-                                    onClick={() => updateGroupColor(group.id, color.hex, color.name)}
-                                    title={color.name}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
+                        <button
+                          className="w-5 h-5 rounded cursor-pointer hover:opacity-80 transition"
+                          style={{ backgroundColor: group.color_hex }}
+                          title="Click to change color"
+                          onClick={() => {
+                            setColorPickerGroupId(group.id);
+                            setColorPickerOpen(true);
+                          }}
+                        />
                         <CardTitle>{group.group_name}</CardTitle>
                         <Badge variant="secondary" className="text-lg">
                           {group.students.length}
@@ -601,6 +583,35 @@ export default function CompetitionGroupsPage({
           </div>
         </div>
       )}
+
+      {/* Color Picker Dialog */}
+      <Dialog open={colorPickerOpen} onOpenChange={setColorPickerOpen}>
+        <DialogContent className="w-96">
+          <DialogHeader>
+            <DialogTitle>Choose a Color</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-4 gap-3 p-4">
+            {GROUP_COLORS.map((color) => (
+              <button
+                key={color.hex}
+                className="w-14 h-14 rounded border-4 transition hover:scale-110"
+                style={{
+                  backgroundColor: color.hex,
+                  borderColor:
+                    groups.find(g => g.id === colorPickerGroupId)?.color_hex === color.hex
+                      ? "#000"
+                      : "#ddd",
+                }}
+                onClick={() => {
+                  updateGroupColor(colorPickerGroupId, color.hex, color.name);
+                  setColorPickerOpen(false);
+                }}
+                title={color.name}
+              />
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
