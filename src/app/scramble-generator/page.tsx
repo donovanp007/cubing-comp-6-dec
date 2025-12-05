@@ -237,7 +237,7 @@ export default function ScrambleGenerator() {
       }
     }
 
-    const pageCount = pdf.internal.getNumberOfPages();
+    const pageCount = (pdf as any).getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       pdf.setPage(i);
       pdf.setFontSize(9);
