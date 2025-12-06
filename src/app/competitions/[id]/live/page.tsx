@@ -1007,6 +1007,7 @@ export default function CompetitionLivePublicPage({
                         <TableHead className="text-slate-300 text-right">Attempt 4</TableHead>
                         <TableHead className="text-slate-300 text-right">Attempt 5</TableHead>
                         <TableHead className="text-slate-300 text-right">Best</TableHead>
+                        <TableHead className="text-slate-300 text-right">Average</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1059,6 +1060,9 @@ export default function CompetitionLivePublicPage({
                           ))}
                           <TableCell className="text-right text-white font-mono font-bold">
                             {result.best_time > 0 ? formatTime(result.best_time) : "-"}
+                          </TableCell>
+                          <TableCell className="text-right text-white font-mono font-bold">
+                            {result.average_time > 0 ? formatTime(result.average_time) : "-"}
                           </TableCell>
                         </TableRow>
                       ))}

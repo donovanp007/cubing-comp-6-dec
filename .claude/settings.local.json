@@ -9,7 +9,10 @@
       "Bash(npm run dev:*)",
       "Bash(curl:*)",
       "Bash(Get-Process node -ErrorAction SilentlyContinue)",
-      "Bash(Stop-Process -Force -ErrorAction SilentlyContinue)"
+      "Bash(Stop-Process -Force -ErrorAction SilentlyContinue)",
+      "Bash(git push:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git show:*)"
     ],
     "deny": [],
     "ask": []
