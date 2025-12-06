@@ -39,6 +39,7 @@ export default function CompetitionsPage() {
     setLoading(false);
   };
 
+  const liveComps = competitions.filter((c) => c.status === "in_progress");
   const upcomingComps = competitions.filter(
     (c) => c.status === "upcoming" || c.status === "registration_open"
   );
@@ -63,7 +64,7 @@ export default function CompetitionsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
@@ -73,6 +74,19 @@ export default function CompetitionsPage() {
               <div>
                 <p className="text-sm text-gray-500">Total Competitions</p>
                 <p className="text-2xl font-bold">{competitions.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white animate-pulse">
+                <Timer className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Live Now</p>
+                <p className="text-2xl font-bold">{liveComps.length}</p>
               </div>
             </div>
           </CardContent>
@@ -94,7 +108,7 @@ export default function CompetitionsPage() {
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white">
-                <Timer className="h-6 w-6" />
+                <CheckCircle className="h-6 w-6" />
               </div>
               <div>
                 <p className="text-sm text-gray-500">Completed</p>
@@ -104,6 +118,21 @@ export default function CompetitionsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Live Competitions */}
+      {liveComps.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Timer className="h-5 w-5 text-red-500 animate-pulse" />
+            🔴 Live Now
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {liveComps.map((comp) => (
+              <CompetitionCard key={comp.id} competition={comp} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Upcoming Competitions */}
       <div className="mb-8">
