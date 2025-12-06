@@ -917,75 +917,155 @@ export default function CompetitionLivePublicPage({
                 <p>No results yet</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-slate-700 hover:bg-slate-700/50">
-                    <TableHead className="text-slate-300 w-12">Pos</TableHead>
-                    <TableHead className="text-slate-300">Group</TableHead>
-                    <TableHead className="text-slate-300">Name</TableHead>
-                    <TableHead className="text-slate-300 text-right">Attempt 1</TableHead>
-                    <TableHead className="text-slate-300 text-right">Attempt 2</TableHead>
-                    <TableHead className="text-slate-300 text-right">Attempt 3</TableHead>
-                    <TableHead className="text-slate-300 text-right">Attempt 4</TableHead>
-                    <TableHead className="text-slate-300 text-right">Attempt 5</TableHead>
-                    <TableHead className="text-slate-300 text-right">Best</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <>
+                {/* Mobile view - Card layout */}
+                <div className="md:hidden space-y-3">
                   {results.map((result, index) => (
-                    <TableRow
+                    <div
                       key={result.student_id}
-                      className={`border-slate-700 ${
+                      className={`p-4 rounded-lg border ${
                         result.advancement_status === "advancing" || result.advancement_status?.includes("champion") || result.advancement_status?.includes("runner") || result.advancement_status?.includes("third")
-                          ? "bg-green-900/20"
+                          ? "bg-green-900/20 border-green-700"
                           : result.advancement_status === "eliminated"
-                          ? "bg-red-900/20"
-                          : "hover:bg-slate-700/50"
+                          ? "bg-red-900/20 border-red-700"
+                          : "bg-slate-700 border-slate-600"
                       }`}
                     >
-                      <TableCell className="font-bold text-white">
-                        {index === 0 && "🥇"}
-                        {index === 1 && "🥈"}
-                        {index === 2 && "🥉"}
-                        {index > 2 && <span className="text-slate-400">#{index + 1}</span>}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          style={{ backgroundColor: getGroupColor(result.group_id) + "30", borderColor: getGroupColor(result.group_id) }}
-                          className="border text-white"
-                        >
-                          {getGroupName(result.group_id)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-white font-medium">
-                        <div className="flex items-center gap-2">
-                          {result.student_name}
+                      {/* Position and Name */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl font-bold text-white">
+                            {index === 0 && "🥇"}
+                            {index === 1 && "🥈"}
+                            {index === 2 && "🥉"}
+                            {index > 2 && <span className="text-slate-300">#{index + 1}</span>}
+                          </span>
+                          <div>
+                            <div className="text-lg font-bold text-white">{result.student_name}</div>
+                            <Badge
+                              style={{ backgroundColor: getGroupColor(result.group_id) + "30", borderColor: getGroupColor(result.group_id) }}
+                              className="border text-white text-xs"
+                            >
+                              {getGroupName(result.group_id)}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Best Time - Large and prominent */}
+                      <div className="mb-3 p-3 bg-slate-600/50 rounded">
+                        <div className="text-slate-300 text-xs font-semibold mb-1">BEST TIME</div>
+                        <div className="text-white font-mono font-bold text-2xl">
+                          {result.best_time > 0 ? formatTime(result.best_time) : "-"}
+                        </div>
+                      </div>
+
+                      {/* Attempts - Compact row */}
+                      <div className="flex gap-2 flex-wrap">
+                        {result.attempts.map((attempt, attemptIdx) => (
+                          <div key={attemptIdx} className="flex-1 min-w-max">
+                            <div className="text-slate-400 text-xs mb-1">#{attemptIdx + 1}</div>
+                            <div className="text-white font-mono text-sm font-medium">
+                              {attempt.time === null ? (
+                                <span className="text-slate-500">-</span>
+                              ) : attempt.is_dnf ? (
+                                <span className="text-red-400 font-bold">DNF</span>
+                              ) : (
+                                formatTime(attempt.time)
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Badges */}
+                      {(result.is_record_breaker || result.is_personal_best) && (
+                        <div className="flex gap-2 mt-3">
                           {result.is_record_breaker && (
-                            <Badge className="bg-yellow-600 animate-pulse">🏆 RECORD</Badge>
+                            <Badge className="bg-yellow-600 animate-pulse text-xs">🏆 RECORD</Badge>
                           )}
                           {result.is_personal_best && (
-                            <Badge className="bg-blue-600 animate-pulse">⭐ PB</Badge>
+                            <Badge className="bg-blue-600 animate-pulse text-xs">⭐ PB</Badge>
                           )}
                         </div>
-                      </TableCell>
-                      {result.attempts.map((attempt, attemptIdx) => (
-                        <TableCell key={attemptIdx} className="text-right text-white font-mono text-sm">
-                          {attempt.time === null ? (
-                            <span className="text-slate-500">-</span>
-                          ) : attempt.is_dnf ? (
-                            <span className="text-red-400 font-bold">DNF</span>
-                          ) : (
-                            <span>{formatTime(attempt.time)}</span>
-                          )}
-                        </TableCell>
-                      ))}
-                      <TableCell className="text-right text-white font-mono font-bold">
-                        {result.best_time > 0 ? formatTime(result.best_time) : "-"}
-                      </TableCell>
-                    </TableRow>
+                      )}
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+
+                {/* Desktop view - Table layout */}
+                <div className="hidden md:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-slate-700 hover:bg-slate-700/50">
+                        <TableHead className="text-slate-300 w-12">Pos</TableHead>
+                        <TableHead className="text-slate-300">Group</TableHead>
+                        <TableHead className="text-slate-300">Name</TableHead>
+                        <TableHead className="text-slate-300 text-right">Attempt 1</TableHead>
+                        <TableHead className="text-slate-300 text-right">Attempt 2</TableHead>
+                        <TableHead className="text-slate-300 text-right">Attempt 3</TableHead>
+                        <TableHead className="text-slate-300 text-right">Attempt 4</TableHead>
+                        <TableHead className="text-slate-300 text-right">Attempt 5</TableHead>
+                        <TableHead className="text-slate-300 text-right">Best</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {results.map((result, index) => (
+                        <TableRow
+                          key={result.student_id}
+                          className={`border-slate-700 ${
+                            result.advancement_status === "advancing" || result.advancement_status?.includes("champion") || result.advancement_status?.includes("runner") || result.advancement_status?.includes("third")
+                              ? "bg-green-900/20"
+                              : result.advancement_status === "eliminated"
+                              ? "bg-red-900/20"
+                              : "hover:bg-slate-700/50"
+                          }`}
+                        >
+                          <TableCell className="font-bold text-white">
+                            {index === 0 && "🥇"}
+                            {index === 1 && "🥈"}
+                            {index === 2 && "🥉"}
+                            {index > 2 && <span className="text-slate-400">#{index + 1}</span>}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              style={{ backgroundColor: getGroupColor(result.group_id) + "30", borderColor: getGroupColor(result.group_id) }}
+                              className="border text-white"
+                            >
+                              {getGroupName(result.group_id)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-white font-medium">
+                            <div className="flex items-center gap-2">
+                              {result.student_name}
+                              {result.is_record_breaker && (
+                                <Badge className="bg-yellow-600 animate-pulse">🏆 RECORD</Badge>
+                              )}
+                              {result.is_personal_best && (
+                                <Badge className="bg-blue-600 animate-pulse">⭐ PB</Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          {result.attempts.map((attempt, attemptIdx) => (
+                            <TableCell key={attemptIdx} className="text-right text-white font-mono text-sm">
+                              {attempt.time === null ? (
+                                <span className="text-slate-500">-</span>
+                              ) : attempt.is_dnf ? (
+                                <span className="text-red-400 font-bold">DNF</span>
+                              ) : (
+                                <span>{formatTime(attempt.time)}</span>
+                              )}
+                            </TableCell>
+                          ))}
+                          <TableCell className="text-right text-white font-mono font-bold">
+                            {result.best_time > 0 ? formatTime(result.best_time) : "-"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
