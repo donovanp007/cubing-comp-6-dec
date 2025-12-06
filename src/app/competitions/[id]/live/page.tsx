@@ -291,11 +291,11 @@ export default function CompetitionLivePublicPage({
           };
         })
         .sort((a, b) => {
-          // Sort by best time (students with times first, then by time)
-          if (!a.best_time && !b.best_time) return 0;
-          if (!a.best_time) return 1;
-          if (!b.best_time) return -1;
-          return a.best_time - b.best_time;
+          // Sort by average time (students with averages first, then by average)
+          if (!a.average_time && !b.average_time) return 0;
+          if (!a.average_time) return 1;
+          if (!b.average_time) return -1;
+          return a.average_time - b.average_time;
         });
 
       setResults(resultsData);
@@ -641,11 +641,11 @@ export default function CompetitionLivePublicPage({
               };
             })
             .sort((a, b) => {
-              // Sort by best time (students with times first, then by time)
-              if (!a.best_time && !b.best_time) return 0;
-              if (!a.best_time) return 1;
-              if (!b.best_time) return -1;
-              return a.best_time - b.best_time;
+              // Sort by average time (students with averages first, then by average)
+              if (!a.average_time && !b.average_time) return 0;
+              if (!a.average_time) return 1;
+              if (!b.average_time) return -1;
+              return a.average_time - b.average_time;
             });
 
           setResults(resultsData);
