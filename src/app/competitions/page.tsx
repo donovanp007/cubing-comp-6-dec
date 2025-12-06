@@ -36,6 +36,7 @@ export default function PublicCompetitionsPage() {
     setLoading(false);
   };
 
+  const liveComps = competitions.filter((c) => c.status === "in_progress");
   const upcomingComps = competitions.filter((c) => c.status === "upcoming" || c.status === "registration_open");
   const pastComps = competitions.filter((c) => c.status === "completed");
 
@@ -47,10 +48,12 @@ export default function PublicCompetitionsPage() {
       {/* Hero */}
       <section className="container mx-auto px-4 py-12 text-center">
         <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-          Upcoming Competitions
+          {liveComps.length > 0 ? "🔴 Live Competitions" : "Upcoming Competitions"}
         </h1>
         <p className="text-xl text-white/80 max-w-2xl mx-auto">
-          View live results, register for events, and track your progress
+          {liveComps.length > 0
+            ? "Watch live results and track competitor progress in real time"
+            : "View live results, register for events, and track your progress"}
         </p>
       </section>
 
@@ -58,7 +61,7 @@ export default function PublicCompetitionsPage() {
       <section className="container mx-auto px-4 pb-20">
         {loading ? (
           <div className="text-center text-white/60">Loading competitions...</div>
-        ) : upcomingComps.length === 0 ? (
+        ) : liveComps.length === 0 && upcomingComps.length === 0 ? (
           <Card className="bg-white/10 backdrop-blur border-white/20 flex items-center justify-center min-h-[250px]">
             <CardContent className="text-center">
               <Trophy className="h-12 w-12 mx-auto text-white/40 mb-4" />
@@ -70,6 +73,21 @@ export default function PublicCompetitionsPage() {
           </Card>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Live Competitions - Show First */}
+            {liveComps.map((comp) => (
+              <CompetitionCard
+                key={comp.id}
+                id={comp.id}
+                name={comp.name}
+                date={comp.competition_date}
+                location={comp.location}
+                description={comp.description || ""}
+                participants={0}
+                status="in_progress"
+              />
+            ))}
+
+            {/* Upcoming Competitions */}
             {upcomingComps.map((comp) => (
               <CompetitionCard
                 key={comp.id}
@@ -82,6 +100,8 @@ export default function PublicCompetitionsPage() {
                 status={comp.status as "upcoming" | "in_progress" | "completed"}
               />
             ))}
+
+            {/* Past Competitions */}
             {pastComps.length > 0 && (
               <>
                 <div className="col-span-full mt-8 mb-4">
