@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Play, Pause, RotateCcw, CheckCircle2, X, Flag } from "lucide-react";
 import Link from "next/link";
+import { parseTimeInput, formatTime } from "@/lib/utils";
 import { calculateRanking } from "@/lib/utils/ranking";
 import { completeRoundAndCalculateAdvancement, getAdvancementSummary } from "@/lib/utils/apply-advancement";
 import { formatTime as formatTimeMs } from "@/lib/utils/advancement";
@@ -489,35 +490,6 @@ export default function CompetitionLivePage({
     }
   };
 
-  const parseTimeInput = (input: string): number | null => {
-    if (!input) return null;
-
-    const num = parseInt(input.replace(/\D/g, ""), 10);
-    if (isNaN(num)) return null;
-
-    // Standard cubing centiseconds format:
-    // "1234" = 12.34 seconds = 12340 milliseconds
-    // "2534" = 25.34 seconds = 25340 milliseconds
-    // "120323" = 1203.23 centiseconds = 1203.23 seconds (hmm, that's too much)
-
-    // Better interpretation: last 2 digits are centiseconds
-    // "1234" = 12 seconds 34 centiseconds = 12.34s
-    // "234" = 2 seconds 34 centiseconds = 2.34s
-    // "34" = 0 seconds 34 centiseconds = 0.34s
-    // "120323" = 1203 seconds 23 centiseconds = 1203.23s (20 minutes!)
-
-    const centiseconds = num % 100;
-    const seconds = Math.floor(num / 100);
-    const totalMs = (seconds * 1000) + (centiseconds * 10);
-
-    return totalMs;
-  };
-
-  const formatTime = (ms: number): string => {
-    if (!ms) return "-.--";
-    const seconds = ms / 1000;
-    return seconds.toFixed(2);
-  };
 
   const formatTimeDisplay = (ms: number): string => {
     if (!ms) return "-.--";
