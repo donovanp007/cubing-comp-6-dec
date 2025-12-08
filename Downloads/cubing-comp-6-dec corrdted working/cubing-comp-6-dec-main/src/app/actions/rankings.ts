@@ -61,7 +61,7 @@ export async function getAllRankingsData(): Promise<RankingEntry[]> {
   const supabase = await createClient()
 
   try {
-    // Fetch all student competition history for active competitions
+    // Fetch all student competition history across all competitions (past, current, and future)
     const { data: historyData, error: historyError } = await supabase
       .from('student_competition_history')
       .select(
@@ -78,7 +78,6 @@ export async function getAllRankingsData(): Promise<RankingEntry[]> {
         competitions(status)
       `
       )
-      .in('competitions.status', ['completed', 'in_progress'])
 
     if (historyError) {
       console.error('Error fetching rankings data:', historyError)
