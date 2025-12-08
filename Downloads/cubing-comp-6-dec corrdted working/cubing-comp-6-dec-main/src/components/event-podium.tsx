@@ -111,26 +111,32 @@ export default function EventPodium({
             </>
           )}
 
-          {/* Fastest Girl Section */}
-          {fastestGirl && podium[0]?.student_id !== fastestGirl.student_id && (
+          {/* Fastest Best Time Section - Shows if not in podium */}
+          {fastestGirl && !podium.some((p) => p.student_id === fastestGirl.student_id) && (
             <div className="mt-6 pt-6 border-t">
-              <div className="bg-pink-50 border-2 border-pink-300 p-4 rounded-lg">
+              <div className="bg-amber-50 border-2 border-amber-300 p-4 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
-                  <Users className="h-5 w-5 text-pink-600" />
-                  <p className="font-bold text-pink-700">Fastest Girl</p>
+                  <Trophy className="h-5 w-5 text-amber-600" />
+                  <p className="font-bold text-amber-700">⚡ Fastest Best Time</p>
                 </div>
                 <div className="text-sm text-gray-700 space-y-1">
                   <p className="font-semibold">{fastestGirl.student_name}</p>
                   <p>
+                    <span className="font-medium">Grade:</span>{" "}
+                    {fastestGirl.grade || "-"}
+                  </p>
+                  <p>
+                    <span className="font-medium">Best Time:</span>{" "}
+                    <span className="font-bold text-amber-600">
+                      {fastestGirl.best_time > 0
+                        ? formatTime(fastestGirl.best_time)
+                        : "-"}
+                    </span>
+                  </p>
+                  <p>
                     <span className="font-medium">Average:</span>{" "}
                     {fastestGirl.average_time > 0
                       ? formatTime(fastestGirl.average_time)
-                      : "-"}
-                  </p>
-                  <p>
-                    <span className="font-medium">Best:</span>{" "}
-                    {fastestGirl.best_time > 0
-                      ? formatTime(fastestGirl.best_time)
                       : "-"}
                   </p>
                 </div>

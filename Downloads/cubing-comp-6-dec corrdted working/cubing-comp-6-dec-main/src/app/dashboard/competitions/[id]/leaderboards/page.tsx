@@ -347,6 +347,8 @@ export default function LeaderboardsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {events.map((event) => {
               const eventName = event.event_types?.name || "Unknown Event"
+
+              // Top 3 by average time (final standings)
               const topResults = studentRankings
                 .slice(0, 3)
                 .map((student) => ({
@@ -357,13 +359,20 @@ export default function LeaderboardsPage() {
                   grade: student.grade,
                 }))
 
-              const fastestGirl = studentRankings[0]
+              // Find student with fastest best time overall
+              const fastestRecord = studentRankings.reduce((fastest, current) => {
+                const currentBest = current.best_time_milliseconds || 0
+                const fastestBest = fastest.best_time_milliseconds || 0
+                return currentBest > 0 && (fastestBest === 0 || currentBest < fastestBest) ? current : fastest
+              }, studentRankings[0])
+
+              const fastestBestTime = fastestRecord && fastestRecord.best_time_milliseconds && fastestRecord.best_time_milliseconds > 0
                 ? {
-                    student_id: studentRankings[0].student_id,
-                    student_name: studentRankings[0].name,
-                    average_time: studentRankings[0].average_time_milliseconds || 0,
-                    best_time: studentRankings[0].best_time_milliseconds || 0,
-                    grade: studentRankings[0].grade,
+                    student_id: fastestRecord.student_id,
+                    student_name: fastestRecord.name,
+                    average_time: fastestRecord.average_time_milliseconds || 0,
+                    best_time: fastestRecord.best_time_milliseconds || 0,
+                    grade: fastestRecord.grade,
                   }
                 : undefined
 
@@ -372,7 +381,7 @@ export default function LeaderboardsPage() {
                   key={event.id}
                   eventName={eventName}
                   podium={topResults}
-                  fastestGirl={fastestGirl}
+                  fastestGirl={fastestBestTime}
                 />
               )
             })}

@@ -643,18 +643,20 @@ export default function CompetitionLivePublicPage({
         </Card>
 
         {/* Podium & Achievements Section */}
-        {results.length > 0 && events.length > 0 && (
+        {results.length > 0 && selectedEvent && (
           <Card className="mb-8 bg-slate-800 border-slate-700">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-yellow-400" />
-                Achievements & Podiums
+                Achievements & Podiums - {events.find((e) => e.id === selectedEvent)?.event_types?.name || "Current Event"}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {events.map((event) => {
-                  const eventName = event.event_types?.name || "Unknown Event";
+                {(() => {
+                  const eventName = events.find((e) => e.id === selectedEvent)?.event_types?.name || "Unknown Event";
+
+                  // Top 3 by average time (final standings)
                   const topResults = results
                     .slice()
                     .sort((a, b) => {
@@ -665,25 +667,25 @@ export default function CompetitionLivePublicPage({
                     })
                     .slice(0, 3);
 
-                  const fastestGirl = results
-                    .filter((r) => r.student_name) // You can add gender filter here if available in data
+                  // Find student with fastest best time overall
+                  const fastestBestTime = results
                     .slice()
                     .sort((a, b) => {
-                      if (!a.average_time && !b.average_time) return 0;
-                      if (!a.average_time) return 1;
-                      if (!b.average_time) return -1;
-                      return a.average_time - b.average_time;
+                      if (!a.best_time && !b.best_time) return 0;
+                      if (!a.best_time) return 1;
+                      if (!b.best_time) return -1;
+                      return a.best_time - b.best_time;
                     })[0];
 
                   return (
                     <EventPodium
-                      key={event.id}
+                      key="podium"
                       eventName={eventName}
                       podium={topResults}
-                      fastestGirl={fastestGirl}
+                      fastestGirl={fastestBestTime}
                     />
                   );
-                })}
+                })()}
               </div>
             </CardContent>
           </Card>
