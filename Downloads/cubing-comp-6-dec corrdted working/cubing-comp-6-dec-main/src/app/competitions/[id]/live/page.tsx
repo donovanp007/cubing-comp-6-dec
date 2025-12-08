@@ -381,47 +381,54 @@ export default function CompetitionLivePublicPage({
 
   const calculateCompetitionStats = async () => {
     try {
-      // Calculate statistics from results and events
+      // Calculate statistics from results for the selected event
       let bestSingle = Infinity;
+      let bestSingleName = "";
       let bestAverage = Infinity;
+      let bestAverageName = "";
       let recordCount = 0;
       let pbCount = 0;
 
-      // Find best times from results
+      // Get the selected event name
+      const selectedEventObj = events.find(e => e.id === selectedEvent);
+      const selectedEventName = selectedEventObj?.event_types?.name || "Unknown Event";
+
+      // Find best times from results for selected event
       results.forEach((result) => {
         if (result.best_time > 0 && result.best_time < bestSingle) {
           bestSingle = result.best_time;
+          bestSingleName = result.student_name;
         }
         if (result.average_time > 0 && result.average_time < bestAverage) {
           bestAverage = result.average_time;
+          bestAverageName = result.student_name;
         }
       });
 
-      // Count participation
+      // Count participation for this event
       const totalRegistrations = results.length;
       const totalParticipants = results.filter(r => r.attempts_completed > 0).length;
       const participationRate = totalRegistrations > 0 ? Math.round((totalParticipants / totalRegistrations) * 100) : 0;
 
-      // Find event with most competitors
-      let eventCompetitorCounts: { [key: string]: number } = {};
-      results.forEach((result) => {
-        if (result.attempts_completed > 0) {
-          const eventName = events.find(e => e.id === selectedEvent)?.event_types?.name || "Unknown";
-          eventCompetitorCounts[eventName] = (eventCompetitorCounts[eventName] || 0) + 1;
-        }
-      });
+      // Format the best single time with event and student name
+      let bestSingleDisplay = "-.--";
+      if (bestSingle !== Infinity) {
+        bestSingleDisplay = `${formatTime(bestSingle)} - ${bestSingleName}`;
+      }
 
-      const mostCompetitorsEvent = Object.entries(eventCompetitorCounts).length > 0
-        ? Object.entries(eventCompetitorCounts).reduce((a, b) => a[1] > b[1] ? a : b)[0]
-        : "N/A";
+      // Format the best average time with event and student name
+      let bestAverageDisplay = "-.--";
+      if (bestAverage !== Infinity) {
+        bestAverageDisplay = `${formatTime(bestAverage)} - ${bestAverageName}`;
+      }
 
       setStatsData({
         recordsSet: recordCount,
         pbsAchieved: pbCount,
         bestSingleTime: bestSingle === Infinity ? 0 : bestSingle,
-        bestAverageTime: bestAverage === Infinity ? "-.--" : formatTime(bestAverage),
+        bestAverageTime: bestAverageDisplay,
         participationRate: participationRate,
-        mostCompetitorsEvent: mostCompetitorsEvent
+        mostCompetitorsEvent: selectedEventName
       });
     } catch (error) {
       console.error("Error calculating stats:", error);
