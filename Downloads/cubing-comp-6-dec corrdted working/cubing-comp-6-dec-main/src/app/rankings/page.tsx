@@ -106,16 +106,22 @@ export default function PublicRankingsPage() {
   // Calculate stats
   const totalChampions = sortedRankings.length > 0 ? 1 : 0
   const activeStudents = rankings.length
-  const bestSingleEntry = rankings.reduce((best, curr) =>
-    curr.overall_best_single < (best?.overall_best_single || Infinity)
-      ? curr
-      : best
-  )
-  const bestAverageEntry = rankings.reduce((best, curr) =>
-    curr.overall_best_average < (best?.overall_best_average || Infinity)
-      ? curr
-      : best
-  )
+  const bestSingleEntry =
+    rankings.length > 0
+      ? rankings.reduce((best, curr) =>
+          curr.overall_best_single < (best?.overall_best_single || Infinity)
+            ? curr
+            : best
+        )
+      : null
+  const bestAverageEntry =
+    rankings.length > 0
+      ? rankings.reduce((best, curr) =>
+          curr.overall_best_average < (best?.overall_best_average || Infinity)
+            ? curr
+            : best
+        )
+      : null
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500">
