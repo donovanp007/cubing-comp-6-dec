@@ -18,6 +18,7 @@ import Link from "next/link";
 import { formatTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import EventPodium from "@/components/event-podium";
+import CompetitionStatsSummary from "@/components/competition-stats-summary";
 
 interface Student {
   id: string;
@@ -74,6 +75,16 @@ export default function CompetitionLivePublicPage({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Competition statistics for summary display
+  const [statsData, setStatsData] = useState({
+    recordsSet: 0,
+    pbsAchieved: 0,
+    bestSingleTime: 0,
+    bestAverageTime: "-.--",
+    participationRate: 0,
+    mostCompetitorsEvent: "N/A"
+  });
 
   // Load persisted selections from sessionStorage on mount
   useEffect(() => {
@@ -135,6 +146,13 @@ export default function CompetitionLivePublicPage({
       );
     }
   }, [selectedEvent, selectedRound, competitionId]);
+
+  // Calculate stats whenever results change
+  useEffect(() => {
+    if (results.length > 0) {
+      calculateCompetitionStats();
+    }
+  }, [results, selectedEvent, events]);
 
   const fetchData = async () => {
     try {
@@ -361,6 +379,55 @@ export default function CompetitionLivePublicPage({
     return group?.group_name || "Unknown";
   };
 
+  const calculateCompetitionStats = async () => {
+    try {
+      // Calculate statistics from results and events
+      let bestSingle = Infinity;
+      let bestAverage = Infinity;
+      let recordCount = 0;
+      let pbCount = 0;
+
+      // Find best times from results
+      results.forEach((result) => {
+        if (result.best_time > 0 && result.best_time < bestSingle) {
+          bestSingle = result.best_time;
+        }
+        if (result.average_time > 0 && result.average_time < bestAverage) {
+          bestAverage = result.average_time;
+        }
+      });
+
+      // Count participation
+      const totalRegistrations = results.length;
+      const totalParticipants = results.filter(r => r.attempts_completed > 0).length;
+      const participationRate = totalRegistrations > 0 ? Math.round((totalParticipants / totalRegistrations) * 100) : 0;
+
+      // Find event with most competitors
+      let eventCompetitorCounts: { [key: string]: number } = {};
+      results.forEach((result) => {
+        if (result.attempts_completed > 0) {
+          const eventName = events.find(e => e.id === selectedEvent)?.event_types?.name || "Unknown";
+          eventCompetitorCounts[eventName] = (eventCompetitorCounts[eventName] || 0) + 1;
+        }
+      });
+
+      const mostCompetitorsEvent = Object.entries(eventCompetitorCounts).length > 0
+        ? Object.entries(eventCompetitorCounts).reduce((a, b) => a[1] > b[1] ? a : b)[0]
+        : "N/A";
+
+      setStatsData({
+        recordsSet: recordCount,
+        pbsAchieved: pbCount,
+        bestSingleTime: bestSingle === Infinity ? 0 : bestSingle,
+        bestAverageTime: bestAverage === Infinity ? "-.--" : formatTime(bestAverage),
+        participationRate: participationRate,
+        mostCompetitorsEvent: mostCompetitorsEvent
+      });
+    } catch (error) {
+      console.error("Error calculating stats:", error);
+    }
+  };
+
   const handleShare = async () => {
     const url = `${window.location.origin}/competitions/${competitionId}/live`;
 
@@ -507,6 +574,24 @@ export default function CompetitionLivePublicPage({
             </Badge>
           </CardContent>
         </Card>
+
+        {/* Competition Statistics Summary */}
+        {competition && (
+          <div className="mb-8">
+            <CompetitionStatsSummary
+              competitionName={competition.name}
+              competitionDate={competition.competition_date || new Date().toLocaleDateString()}
+              totalParticipants={results.length}
+              totalEvents={events.length}
+              recordsSet={statsData.recordsSet}
+              pbsAchieved={statsData.pbsAchieved}
+              bestSingleTime={statsData.bestSingleTime}
+              bestAverageTime={statsData.bestAverageTime}
+              mostCompetitors={statsData.mostCompetitorsEvent}
+              participationRate={statsData.participationRate}
+            />
+          </div>
+        )}
 
         {/* Controls */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
