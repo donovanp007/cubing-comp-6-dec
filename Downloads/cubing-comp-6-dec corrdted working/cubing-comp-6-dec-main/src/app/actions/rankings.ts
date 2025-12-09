@@ -419,6 +419,7 @@ export interface StudentProfileData {
       solves: Array<{
         solve_time: number
         penalty: string | null
+        isPB?: boolean
       }>
     }>
   }>
@@ -637,6 +638,11 @@ export async function getStudentProfileData(studentId: string): Promise<StudentP
       const roundKey = round.id
 
       if (!comp.rounds.has(roundKey)) {
+        const roundSolves = (solvesMap.get(roundKey) || []).map((solve) => ({
+          ...solve,
+          isPB: solve.solve_time === score.best_time_milliseconds && score.best_time_milliseconds > 0
+        }))
+
         comp.rounds.set(roundKey, {
           round_id: round.id,
           round_name: round.round_name,
@@ -644,7 +650,7 @@ export async function getStudentProfileData(studentId: string): Promise<StudentP
           event_name: eventName,
           best_single: score.best_time_milliseconds || 0,
           best_average: score.average_time_milliseconds || 0,
-          solves: solvesMap.get(roundKey) || []
+          solves: roundSolves
         })
       }
     })

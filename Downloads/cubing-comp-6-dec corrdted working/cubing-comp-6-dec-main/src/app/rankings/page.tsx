@@ -594,14 +594,19 @@ export default function PublicRankingsPage() {
                                           round.solves.map((solve, solveIdx) => (
                                             <div
                                               key={solveIdx}
-                                              className={`p-2 rounded text-center text-xs font-mono ${
-                                                solve.penalty === 'DNF'
+                                              className={`p-2 rounded text-center text-xs font-mono relative ${
+                                                solve.isPB
+                                                  ? 'bg-amber-100 text-amber-900 ring-2 ring-amber-400 font-bold'
+                                                  : solve.penalty === 'DNF'
                                                   ? 'bg-red-100 text-red-800'
                                                   : solve.penalty === '+2'
                                                   ? 'bg-yellow-100 text-yellow-800'
                                                   : 'bg-white border border-gray-200 text-gray-900'
                                               }`}
                                             >
+                                              {solve.isPB && (
+                                                <span className="absolute -top-1 -right-1 text-lg">⭐</span>
+                                              )}
                                               <p className="font-bold">{formatTime(solve.solve_time)}</p>
                                               {solve.penalty && solve.penalty !== 'OK' && (
                                                 <p className="text-xs mt-0.5">{solve.penalty}</p>
