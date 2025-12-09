@@ -475,58 +475,32 @@ export async function getStudentProfileData(studentId: string): Promise<StudentP
     // Extract unique IDs
     const roundIds = [...new Set((finalScores as any[]).map((fs) => fs.round_id))]
 
-    // Fetch rounds with timeout
-    let rounds
-    let roundsError
-    try {
-      const result = await Promise.race([
-        supabase
-          .from('rounds')
-          .select('id, round_number, round_name, competition_event_id')
-          .in('id', roundIds),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Rounds fetch timeout')), 15000))
-      ]) as any
-      rounds = result.data
-      roundsError = result.error
-    } catch (err) {
-      console.error('[StudentProfile] Rounds fetch error:', err)
-      return null
-    }
+    // Fetch rounds and solves IN PARALLEL
+    const [
+      { data: rounds, error: roundsError },
+      { data: solvesData, error: solvesError }
+    ] = await Promise.all([
+      supabase
+        .from('rounds')
+        .select('id, round_number, round_name, competition_event_id')
+        .in('id', roundIds),
+      supabase
+        .from('results')
+        .select('round_id, time_milliseconds, is_dnf, penalty_seconds')
+        .eq('student_id', studentId)
+    ])
 
     if (roundsError || !rounds || rounds.length === 0) {
       console.error('[StudentProfile] Error fetching rounds:', roundsError)
       return null
     }
 
-    // Fetch solves separately to avoid chaining issues
-    let solves: any[] = []
-    let solvesError
-    try {
-      console.log('[StudentProfile] Starting solves fetch for student', studentId)
-      const result = await Promise.race([
-        supabase
-          .from('results')
-          .select('round_id, time_milliseconds, is_dnf, penalty_seconds')
-          .eq('student_id', studentId),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Solves fetch timeout')), 15000))
-      ]) as any
-      console.log('[StudentProfile] Solves fetch completed, got', result?.data?.length, 'results')
-      solves = result.data || []
-      solvesError = result.error
-      if (solvesError) {
-        console.warn('[StudentProfile] Solves fetch error:', solvesError)
-      }
-    } catch (err) {
-      console.error('[StudentProfile] Solves fetch exception:', err)
-      solves = []
-    }
+    const solves = solvesData || []
 
     const roundMap = new Map(rounds.map((r: any) => [r.id, r]))
     const compEventIds = [...new Set((rounds as any[]).map((r) => r.competition_event_id))]
-    console.log('[StudentProfile] Found', compEventIds.length, 'unique competition event IDs')
 
-    // Fetch competition events and event types in parallel
-    console.log('[StudentProfile] Fetching competition events and event types...')
+    // Fetch competition events, event types, and competitions IN PARALLEL
     const [
       { data: compEvents, error: compEventsError },
       { data: eventTypes, error: eventTypesError }
@@ -540,10 +514,8 @@ export async function getStudentProfileData(studentId: string): Promise<StudentP
         .select('id, display_name')
     ])
 
-    console.log('[StudentProfile] Competition events and event types fetch completed')
-
     if (compEventsError || !compEvents || eventTypesError || !eventTypes) {
-      console.error('[StudentProfile] Error fetching comp events or event types', { compEventsError, eventTypesError })
+      console.error('[StudentProfile] Error fetching comp events or event types:', { compEventsError, eventTypesError })
       return null
     }
 
@@ -552,13 +524,10 @@ export async function getStudentProfileData(studentId: string): Promise<StudentP
     const competitionIds = [...new Set((compEvents as any[]).map((ce) => ce.competition_id))]
 
     // Fetch competitions
-    console.log('[StudentProfile] Fetching', competitionIds.length, 'competitions...')
     const { data: competitions, error: competitionsError } = await supabase
       .from('competitions')
       .select('id, name, competition_date')
       .in('id', competitionIds)
-
-    console.log('[StudentProfile] Competitions fetch completed')
 
     if (competitionsError || !competitions) {
       console.error('[StudentProfile] Error fetching competitions:', competitionsError)
@@ -683,13 +652,7 @@ export async function getStudentProfileData(studentId: string): Promise<StudentP
     }
 
     const elapsed = Date.now() - profileStartTime
-    console.log(`[StudentProfile] Successfully built profile:`, {
-      competitions: competitionsArray.length,
-      events: Object.keys(cube_stats).length,
-      solves: (solves || []).length,
-      elapsed: `${elapsed}ms`
-    })
-    console.log(`[StudentProfile] Returning profile with ${competitionsArray.length} competitions (${elapsed}ms)`)
+    console.log(`[StudentProfile] Profile loaded in ${elapsed}ms`)
     return profile
   } catch (error) {
     console.error('[StudentProfile] Error in getStudentProfileData:', error)
