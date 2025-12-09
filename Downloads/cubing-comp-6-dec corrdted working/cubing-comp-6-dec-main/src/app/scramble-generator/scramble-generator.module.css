@@ -1,0 +1,249 @@
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.heading {
+  text-align: center;
+  color: #333;
+  margin-bottom: 10px;
+  font-size: 2.5em;
+}
+
+.subtitle {
+  text-align: center;
+  color: #666;
+  margin-bottom: 30px;
+  font-size: 1.1em;
+}
+
+.selectors {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  justify-content: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.selectorGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.selectorGroup label {
+  font-weight: 600;
+  color: #555;
+}
+
+.selectorGroup select {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 2px solid #ddd;
+  font-size: 1em;
+  cursor: pointer;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.selectorGroup select:hover {
+  border-color: #667eea;
+}
+
+.selectorGroup select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.controls {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+.button {
+  padding: 15px 35px;
+  font-size: 1.1em;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.generateBtn {
+  composes: button;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.generateBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+}
+
+.copyBtn {
+  composes: button;
+  background: #48bb78;
+  color: white;
+}
+
+.copyBtn:hover {
+  background: #38a169;
+  transform: translateY(-2px);
+}
+
+.copyBtn:disabled {
+  background: #cbd5e0;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.copyBtn.copied {
+  background: #2d7a4f !important;
+}
+
+.exportBtn {
+  composes: button;
+  background: #e53e3e;
+  color: white;
+}
+
+.exportBtn:hover {
+  background: #c53030;
+  transform: translateY(-2px);
+}
+
+.exportBtn:disabled {
+  background: #cbd5e0;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.roundsContainer {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+.roundGroup {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.roundHeader {
+  font-size: 1.3em;
+  font-weight: 700;
+  color: #667eea;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 3px solid #667eea;
+}
+
+.scramblesContainer {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 15px;
+}
+
+.scrambleItem {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  border: 2px solid #e9ecef;
+}
+
+.scrambleNumber {
+  font-weight: bold;
+  color: #667eea;
+  margin-bottom: 10px;
+  font-size: 1.1em;
+}
+
+.scrambleMoves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.moveCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.moveImage {
+  width: 40px;
+  height: 50px;
+  object-fit: contain;
+  border-radius: 5px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.moveImage:hover {
+  transform: scale(1.05);
+}
+
+.moveImage.doubleMove {
+  box-shadow: 0 0 0 2px #ffd700, 0 1px 3px rgba(0, 0, 0, 0.15);
+  background: #fffacd;
+}
+
+.moveLabel {
+  font-size: 0.8em;
+  font-weight: 600;
+  color: #555;
+  text-align: center;
+}
+
+.imageError {
+  background: #fed7d7;
+  border: 1px solid #fc8181;
+  color: #c53030;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.emptyState {
+  font-size: 1.2em;
+  color: #999;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 20px;
+  }
+
+  .heading {
+    font-size: 1.8em;
+  }
+
+  .moveImage {
+    width: 30px;
+    height: 38px;
+  }
+
+  .scrambleMoves {
+    gap: 4px;
+  }
+}

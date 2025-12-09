@@ -4,38 +4,62 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Trophy, Users, Zap, Award } from 'lucide-react'
+import { Trophy, Users, Zap, Award, X } from 'lucide-react'
 import { formatTime } from '@/lib/utils'
 import RankingsTable from '@/components/rankings-table'
 import RankingsStickyHeader from '@/components/rankings-sticky-header'
-import { getAllRankingsData, getEventTypesForRankings } from '@/app/actions/rankings'
-import type { RankingEntry } from '@/app/actions/rankings'
+import { getAllRankingsData, getEventTypesForRankings, getStudentProfileData } from '@/app/actions/rankings'
+import type { RankingEntry, StudentProfileData } from '@/app/actions/rankings'
 
 export default function PublicRankingsPage() {
   const [rankings, setRankings] = useState<RankingEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedFilter, setSelectedFilter] = useState('')
-  const [selectedCube, setSelectedCube] = useState('all')
+  const [selectedCube, setSelectedCube] = useState('3x3x3 Cube') // Default to 3x3
   const [rankingMetric, setRankingMetric] = useState<'average' | 'single'>(
     'average'
   )
   const [eventTypes, setEventTypes] = useState<any[]>([])
+  const [selectedStudent, setSelectedStudent] = useState<RankingEntry | null>(null)
+  const [studentProfile, setStudentProfile] = useState<StudentProfileData | null>(null)
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileTab, setProfileTab] = useState<'overview' | 'events'>('overview')
+  const [competitionFilter, setCompetitionFilter] = useState<'all' | 'current' | 'past'>('all')
 
   // Fetch rankings and event types
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true)
       try {
+        console.log('[Client] Starting fetch of rankings data...')
+        const startTime = Date.now()
+
         const [rankingsData, eventTypesData] = await Promise.all([
           getAllRankingsData(),
           getEventTypesForRankings(),
         ])
-        setRankings(rankingsData)
-        setEventTypes(eventTypesData)
+
+        const elapsed = Date.now() - startTime
+        console.log(`[Client] Fetch completed in ${elapsed}ms`)
+        console.log(`[Client] Rankings data received:`, {
+          count: rankingsData?.length,
+          firstEntry: rankingsData?.[0],
+          allEntries: rankingsData
+        })
+        console.log(`[Client] Event types received:`, eventTypesData)
+
+        console.log(`[Client] Setting rankings state with ${rankingsData?.length} entries`)
+        setRankings(rankingsData || [])
+
+        console.log(`[Client] Setting event types state`)
+        setEventTypes(eventTypesData || [])
+
+        console.log(`[Client] Setting loading to false`)
       } catch (error) {
-        console.error('Error fetching rankings:', error)
+        console.error('[Client] Error fetching rankings:', error)
+        console.error('[Client] Error stack:', error instanceof Error ? error.stack : 'No stack')
       } finally {
+        console.log('[Client] Setting loading to false in finally block')
         setLoading(false)
       }
     }
@@ -45,14 +69,29 @@ export default function PublicRankingsPage() {
     return () => clearInterval(interval)
   }, [])
 
-  // Filter and sort rankings
-  const filteredRankings = rankings.filter((entry) => {
-    // Apply cube filter
+  // Filter and sort rankings by CUBE CATEGORY
+  const filteredRankings = rankings.filter((entry: any) => {
+    // Only include students who have times
+    const hasCubeStats = Object.keys(entry.cube_stats || {}).length > 0
+
+    if (!hasCubeStats) {
+      return false
+    }
+
+    // Only include students who have VALID times (> 0) for the selected cube
     if (selectedCube !== 'all') {
-      const matchesCube =
-        entry.best_single_event === selectedCube ||
-        entry.best_average_event === selectedCube
-      if (!matchesCube) return false
+      const cubeStats = entry.cube_stats[selectedCube]
+      if (!cubeStats || (cubeStats.best_single <= 0 && cubeStats.best_average <= 0)) {
+        return false
+      }
+    } else {
+      // For 'all' cubes, ensure at least one cube has valid times
+      const hasValidTimes = Object.values(entry.cube_stats || {}).some((stats: any) =>
+        stats && (stats.best_single > 0 || stats.best_average > 0)
+      )
+      if (!hasValidTimes) {
+        return false
+      }
     }
 
     // Apply category filter
@@ -68,26 +107,110 @@ export default function PublicRankingsPage() {
     }
   })
 
-  const sortedRankings = [...filteredRankings].sort((a, b) => {
-    if (rankingMetric === 'average') {
-      // Average First mode
-      if (a.overall_best_average !== b.overall_best_average) {
-        return a.overall_best_average - b.overall_best_average
+  // Helper to find best times across all cubes
+  const getBestStats = (cubeStats: any) => {
+    let bestAverage = Infinity
+    let bestSingle = Infinity
+    Object.values(cubeStats).forEach((stats: any) => {
+      if (stats.best_average > 0 && stats.best_average < bestAverage) {
+        bestAverage = stats.best_average
       }
-      if (a.overall_best_single !== b.overall_best_single) {
-        return a.overall_best_single - b.overall_best_single
+      if (stats.best_single > 0 && stats.best_single < bestSingle) {
+        bestSingle = stats.best_single
+      }
+    })
+    return { best_average: bestAverage, best_single: bestSingle }
+  }
+
+  const sortedRankings = [...filteredRankings].sort((a: any, b: any) => {
+    if (selectedCube === 'all') {
+      // If showing all cubes, sort by best overall across all cubes
+      const aStats = getBestStats(a.cube_stats)
+      const bStats = getBestStats(b.cube_stats)
+
+      if (rankingMetric === 'average') {
+        if (aStats.best_average !== bStats.best_average) {
+          return aStats.best_average - bStats.best_average
+        }
+        return aStats.best_single - bStats.best_single
+      } else {
+        if (aStats.best_single !== bStats.best_single) {
+          return aStats.best_single - bStats.best_single
+        }
+        return aStats.best_average - bStats.best_average
       }
     } else {
-      // Single First mode
-      if (a.overall_best_single !== b.overall_best_single) {
-        return a.overall_best_single - b.overall_best_single
-      }
-      if (a.overall_best_average !== b.overall_best_average) {
-        return a.overall_best_average - b.overall_best_average
+      // Sort by selected cube's stats
+      const aStats = a.cube_stats[selectedCube] || { best_average: Infinity, best_single: Infinity }
+      const bStats = b.cube_stats[selectedCube] || { best_average: Infinity, best_single: Infinity }
+
+      if (rankingMetric === 'average') {
+        // Average First mode
+        if (aStats.best_average !== bStats.best_average) {
+          return aStats.best_average - bStats.best_average
+        }
+        return aStats.best_single - bStats.best_single
+      } else {
+        // Single First mode
+        if (aStats.best_single !== bStats.best_single) {
+          return aStats.best_single - bStats.best_single
+        }
+        return aStats.best_average - bStats.best_average
       }
     }
-    return a.student_name.localeCompare(b.student_name)
   })
+
+  // Handle student selection with profile data fetching
+  const handleSelectStudent = async (entry: RankingEntry) => {
+    setSelectedStudent(entry)
+    setProfileLoading(true)
+    try {
+      console.log(`[Client] Fetching profile for student ${entry.student_id}`)
+      const profile = await getStudentProfileData(entry.student_id)
+      console.log(`[Client] Profile fetch result:`, profile)
+      if (profile) {
+        setStudentProfile(profile)
+      } else {
+        console.warn(`[Client] Profile data was null for student ${entry.student_id}`)
+        // Still set a minimal profile so user sees student info at least
+        setStudentProfile({
+          student_id: entry.student_id,
+          student_name: entry.student_name,
+          grade: entry.grade || null,
+          school: entry.school || null,
+          age: entry.age || null,
+          age_range: entry.age_range || '',
+          profile_image_url: null,
+          competitions_participated: 0,
+          events_participated: 0,
+          records_count: 0,
+          pbs_count: 0,
+          cube_stats: entry.cube_stats || {},
+          competitions: [],
+        } as StudentProfileData)
+      }
+    } catch (error) {
+      console.error('Error fetching student profile:', error)
+      // Show at least basic student info from the ranking entry
+      setStudentProfile({
+        student_id: entry.student_id,
+        student_name: entry.student_name,
+        grade: entry.grade || null,
+        school: entry.school || null,
+        age: entry.age || null,
+        age_range: entry.age_range || '',
+        profile_image_url: null,
+        competitions_participated: 0,
+        events_participated: 0,
+        records_count: 0,
+        pbs_count: 0,
+        cube_stats: entry.cube_stats || {},
+        competitions: [],
+      } as StudentProfileData)
+    } finally {
+      setProfileLoading(false)
+    }
+  }
 
   // Calculate available filters
   const availableSchools = Array.from(
@@ -100,200 +223,465 @@ export default function PublicRankingsPage() {
   const availableFilters = {
     schools: availableSchools,
     grades: availableGrades,
-    cubes: eventTypes,
+    cubes: eventTypes.map((et) => ({ id: et.id, name: et.display_name })),
   }
 
-  // Calculate stats
-  const totalChampions = sortedRankings.length > 0 ? 1 : 0
-  const activeStudents = rankings.length
-  const bestSingleEntry =
-    rankings.length > 0
-      ? rankings.reduce((best, curr) =>
-          curr.overall_best_single < (best?.overall_best_single || Infinity)
-            ? curr
-            : best
-        )
-      : null
-  const bestAverageEntry =
-    rankings.length > 0
-      ? rankings.reduce((best, curr) =>
-          curr.overall_best_average < (best?.overall_best_average || Infinity)
-            ? curr
-            : best
-        )
-      : null
+  // Calculate stats - filtered by selected cube
+  const topStudent = sortedRankings.length > 0 ? sortedRankings[0] : null
+  const activeStudents = filteredRankings.length
+
+  let bestSingle: number | null = null
+  let bestAverage: number | null = null
+
+  if (filteredRankings.length > 0) {
+    if (selectedCube === 'all') {
+      // Find best single and average across all cubes
+      filteredRankings.forEach((student: any) => {
+        Object.values(student.cube_stats || {}).forEach((stats: any) => {
+          if (stats && typeof stats === 'object') {
+            if (stats.best_single > 0 && (!bestSingle || stats.best_single < bestSingle)) {
+              bestSingle = stats.best_single
+            }
+            if (stats.best_average > 0 && (!bestAverage || stats.best_average < bestAverage)) {
+              bestAverage = stats.best_average
+            }
+          }
+        })
+      })
+    } else {
+      // Find best single and average for this specific cube
+      filteredRankings.forEach((student: any) => {
+        const stats = student.cube_stats[selectedCube]
+        if (stats) {
+          if (stats.best_single > 0 && (!bestSingle || stats.best_single < bestSingle)) {
+            bestSingle = stats.best_single
+          }
+          if (stats.best_average > 0 && (!bestAverage || stats.best_average < bestAverage)) {
+            bestAverage = stats.best_average
+          }
+        }
+      })
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500">
+    <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <nav className="container mx-auto px-4 py-6">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="h-10 w-10 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center">
-              <span className="text-2xl">🧊</span>
-            </div>
-            <span className="text-2xl font-bold text-white">Cubing Hub</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/competitions"
-              className="text-white/80 hover:text-white transition"
-            >
-              Competitions
+      <nav className="border-b border-gray-200 bg-white">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2">
+              <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                <span className="text-2xl">🧊</span>
+              </div>
+              <span className="text-2xl font-bold text-gray-900">Cubing Hub</span>
             </Link>
-            <Link href="/login">
-              <Button
-                variant="secondary"
-                className="bg-white/20 text-white hover:bg-white/30 backdrop-blur"
+            <div className="flex items-center gap-4">
+              <Link
+                href="/competitions"
+                className="text-gray-600 hover:text-gray-900 transition font-medium"
               >
-                Coach Login
-              </Button>
-            </Link>
+                Competitions
+              </Link>
+              <Link href="/login">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                  Coach Login
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="container mx-auto px-4 py-12 text-center">
-        <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-          Student Rankings
-        </h1>
-        <p className="text-xl text-white/80 max-w-2xl mx-auto">
-          See who&apos;s leading the pack across all events and competitions
-        </p>
+      {/* Hero Section */}
+      <section className="border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className="container mx-auto px-4 py-12">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">
+            Student Rankings
+          </h1>
+          <p className="text-lg text-gray-600">
+            See who&apos;s leading the pack across all events and competitions
+          </p>
+        </div>
       </section>
 
       {/* Stats Cards */}
-      <section className="container mx-auto px-4 pb-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="bg-white/10 backdrop-blur border-white/20">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-yellow-400 to-yellow-500 flex items-center justify-center text-white">
-                  <Trophy className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-sm text-white/60">Total Champions</p>
-                  <p className="text-2xl font-bold text-white">{totalChampions}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-white/10 backdrop-blur border-white/20">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white">
-                  <Users className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-sm text-white/60">Active Students</p>
-                  <p className="text-2xl font-bold text-white">{activeStudents}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-white/10 backdrop-blur border-white/20">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center text-white">
-                  <Zap className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-sm text-white/60">Best Single</p>
-                  <p className="text-2xl font-bold text-white font-mono">
-                    {bestSingleEntry
-                      ? formatTime(bestSingleEntry.overall_best_single)
-                      : '-'}
+      <section className="bg-white border-b border-gray-200">
+        <div className="container mx-auto px-4 py-8">
+          <div className="mb-6">
+            <p className="text-sm font-semibold text-gray-600">
+              Showing: <span className="text-blue-600 font-bold">{selectedCube}</span>
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* #1 Ranked Card */}
+            <div className="border border-gray-200 rounded-lg p-6 bg-white hover:shadow-md transition">
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">🏆 #1 Ranked</p>
+              {topStudent ? (
+                <>
+                  <p className="text-xl font-bold text-gray-900 mb-1">{topStudent.student_name}</p>
+                  <p className="text-sm text-gray-600">
+                    {rankingMetric === 'average'
+                      ? formatTime(topStudent.cube_stats?.[selectedCube]?.best_average || 0)
+                      : formatTime(topStudent.cube_stats?.[selectedCube]?.best_single || 0)}
                   </p>
-                  {bestSingleEntry && (
-                    <p className="text-xs text-white/60">
-                      {bestSingleEntry.best_single_event}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-white/10 backdrop-blur border-white/20">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-400 to-purple-500 flex items-center justify-center text-white">
-                  <Award className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-sm text-white/60">Best Average</p>
-                  <p className="text-2xl font-bold text-white font-mono">
-                    {bestAverageEntry
-                      ? formatTime(bestAverageEntry.overall_best_average)
-                      : '-'}
-                  </p>
-                  {bestAverageEntry && (
-                    <p className="text-xs text-white/60">
-                      {bestAverageEntry.best_average_event}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </>
+              ) : (
+                <p className="text-xl font-bold text-gray-400">-</p>
+              )}
+            </div>
+
+            {/* Competitors Card */}
+            <div className="border border-gray-200 rounded-lg p-6 bg-white hover:shadow-md transition">
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">👥 Competitors</p>
+              <p className="text-3xl font-bold text-gray-900">{activeStudents}</p>
+              <p className="text-xs text-gray-600 mt-1">active in {selectedCube}</p>
+            </div>
+
+            {/* Best Single Card */}
+            <div className="border border-gray-200 rounded-lg p-6 bg-white hover:shadow-md transition">
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">⚡ Best Single</p>
+              <p className="text-2xl font-bold text-green-600 font-mono">
+                {bestSingle ? formatTime(bestSingle) : '-'}
+              </p>
+              <p className="text-xs text-gray-600 mt-1">for {selectedCube}</p>
+            </div>
+
+            {/* Best Average Card */}
+            <div className="border border-gray-200 rounded-lg p-6 bg-white hover:shadow-md transition">
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">📊 Best Average</p>
+              <p className="text-2xl font-bold text-blue-600 font-mono">
+                {bestAverage ? formatTime(bestAverage) : '-'}
+              </p>
+              <p className="text-xs text-gray-600 mt-1">for {selectedCube}</p>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Filter Header */}
-      {!loading && rankings.length > 0 && (
-        <RankingsStickyHeader
-          selectedCategory={selectedCategory}
-          onCategoryChange={setSelectedCategory}
-          selectedFilter={selectedFilter}
-          onFilterChange={setSelectedFilter}
-          selectedCube={selectedCube}
-          onCubeChange={setSelectedCube}
-          rankingMetric={rankingMetric}
-          onMetricToggle={() =>
-            setRankingMetric(rankingMetric === 'average' ? 'single' : 'average')
-          }
-          availableFilters={availableFilters}
-        />
+      {rankings.length > 0 && (
+        <div className="bg-white border-b border-gray-200">
+          <div className="container mx-auto px-4 py-4">
+            <RankingsStickyHeader
+              selectedCategory={selectedCategory}
+              onCategoryChange={setSelectedCategory}
+              selectedFilter={selectedFilter}
+              onFilterChange={setSelectedFilter}
+              selectedCube={selectedCube}
+              onCubeChange={setSelectedCube}
+              rankingMetric={rankingMetric}
+              onMetricToggle={() =>
+                setRankingMetric(rankingMetric === 'average' ? 'single' : 'average')
+              }
+              availableFilters={availableFilters}
+            />
+          </div>
+        </div>
       )}
 
       {/* Rankings Content */}
       <section className="container mx-auto px-4 py-8 pb-20">
-        {loading ? (
-          <Card className="bg-white/10 backdrop-blur border-white/20">
+        {sortedRankings.length > 0 ? (
+          <RankingsTable
+            rankings={sortedRankings}
+            onSelectStudent={handleSelectStudent}
+            selectedCube={selectedCube}
+          />
+        ) : loading ? (
+          <Card className="border border-gray-200">
             <CardContent className="p-12 text-center">
-              <p className="text-white/60">Loading rankings...</p>
+              <p className="text-gray-600">Loading rankings...</p>
             </CardContent>
           </Card>
-        ) : sortedRankings.length === 0 ? (
-          <Card className="bg-white/10 backdrop-blur border-white/20">
+        ) : (
+          <Card className="border border-gray-200">
             <CardContent className="p-12 text-center">
-              <Trophy className="h-16 w-16 mx-auto text-white/30 mb-4" />
-              <p className="text-white/60 text-lg">
+              <Trophy className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+              <p className="text-gray-700 text-lg font-semibold">
                 {rankings.length === 0
                   ? 'No rankings yet'
                   : 'No results for selected filters'}
               </p>
-              <p className="text-white/40 text-sm mt-2">
+              <p className="text-gray-600 text-sm mt-2">
                 {rankings.length === 0
                   ? 'Rankings will appear once students participate in competitions'
                   : 'Try adjusting your filters'}
               </p>
             </CardContent>
           </Card>
-        ) : (
-          <RankingsTable rankings={sortedRankings} />
         )}
       </section>
 
+      {/* Student Profile Modal */}
+      {selectedStudent && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <Card className="w-full max-w-4xl my-8">
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-0 sticky top-0 bg-white border-b z-10">
+              <div className="p-6 pb-0">
+                <CardTitle className="text-3xl">{selectedStudent.student_name}</CardTitle>
+                <CardDescription className="mt-2 space-y-1">
+                  {selectedStudent.grade && <p>Grade: {selectedStudent.grade}</p>}
+                  {selectedStudent.school && <p>School: {selectedStudent.school}</p>}
+                  {selectedStudent.age && <p>Age: {selectedStudent.age} ({selectedStudent.age_range})</p>}
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-2"
+                onClick={() => {
+                  setSelectedStudent(null)
+                  setStudentProfile(null)
+                  setProfileTab('overview')
+                  setCompetitionFilter('all')
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+
+            {/* Tabs */}
+            {studentProfile && (
+              <div className="border-b border-gray-200 bg-white sticky top-[80px] z-10">
+                <div className="flex gap-0 px-6">
+                  <button
+                    onClick={() => setProfileTab('overview')}
+                    className={`px-0 py-3 font-medium border-b-2 transition ${
+                      profileTab === 'overview'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    📊 Overview & Competitions
+                  </button>
+                  <button
+                    onClick={() => setProfileTab('events')}
+                    className={`px-0 py-3 font-medium border-b-2 transition ml-6 ${
+                      profileTab === 'events'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    🧩 All Event Types
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <CardContent className="space-y-6 py-6">
+              {profileLoading ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">Loading profile...</p>
+                </div>
+              ) : studentProfile ? (
+                <>
+                  {profileTab === 'overview' ? (
+                    <>
+                      {/* Stats Overview */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="border border-gray-200 rounded-lg p-4">
+                          <p className="text-xs font-semibold text-gray-600 uppercase">Competitions</p>
+                          <p className="text-2xl font-bold text-gray-900 mt-2">
+                            {studentProfile.competitions_participated}
+                          </p>
+                          <p className="text-xs text-gray-600 mt-1">Participated</p>
+                        </div>
+
+                        <div className="border border-gray-200 rounded-lg p-4">
+                          <p className="text-xs font-semibold text-gray-600 uppercase">Events</p>
+                          <p className="text-2xl font-bold text-gray-900 mt-2">
+                            {studentProfile.events_participated}
+                          </p>
+                          <p className="text-xs text-gray-600 mt-1">Types</p>
+                        </div>
+
+                        <div className="border border-gray-200 rounded-lg p-4">
+                          <p className="text-xs font-semibold text-gray-600 uppercase">Records</p>
+                          <p className="text-2xl font-bold text-gray-900 mt-2">
+                            {studentProfile.records_count}
+                          </p>
+                          <p className="text-xs text-gray-600 mt-1">Set</p>
+                        </div>
+
+                        <div className="border border-gray-200 rounded-lg p-4">
+                          <p className="text-xs font-semibold text-gray-600 uppercase">PBs</p>
+                          <p className="text-2xl font-bold text-gray-900 mt-2">
+                            {studentProfile.pbs_count}
+                          </p>
+                          <p className="text-xs text-gray-600 mt-1">Achieved</p>
+                        </div>
+                      </div>
+
+                      {/* Competition Filter */}
+                      <div className="flex gap-2 py-2">
+                        <button
+                          onClick={() => setCompetitionFilter('all')}
+                          className={`px-4 py-2 rounded text-sm font-medium transition ${
+                            competitionFilter === 'all'
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          All Competitions
+                        </button>
+                        <button
+                          onClick={() => setCompetitionFilter('current')}
+                          className={`px-4 py-2 rounded text-sm font-medium transition ${
+                            competitionFilter === 'current'
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          Current
+                        </button>
+                        <button
+                          onClick={() => setCompetitionFilter('past')}
+                          className={`px-4 py-2 rounded text-sm font-medium transition ${
+                            competitionFilter === 'past'
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          Past
+                        </button>
+                      </div>
+
+                      {/* Competition History */}
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-4 text-lg">Competition History</h3>
+                        {studentProfile.competitions.length > 0 ? (
+                          <div className="space-y-4">
+                            {studentProfile.competitions.map((comp) => (
+                              <div
+                                key={comp.competition_id}
+                                className="border border-gray-200 rounded-lg p-4 bg-white hover:shadow-md transition"
+                              >
+                                <div className="flex justify-between items-start mb-3">
+                                  <div>
+                                    <h4 className="font-bold text-gray-900">{comp.competition_name}</h4>
+                                    <p className="text-xs text-gray-600">
+                                      {new Date(comp.competition_date).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                    {comp.rounds.length} Round{comp.rounds.length !== 1 ? 's' : ''}
+                                  </span>
+                                </div>
+
+                                {/* Rounds with Solves */}
+                                <div className="space-y-3">
+                                  {comp.rounds.map((round) => (
+                                    <div key={round.round_id} className="border border-gray-200 rounded p-3 bg-gray-50">
+                                      <div className="flex justify-between items-center mb-3">
+                                        <div>
+                                          <p className="font-semibold text-gray-900 text-sm">
+                                            {round.round_name || `Round ${round.round_number}`}
+                                          </p>
+                                          <p className="text-xs text-gray-600">{round.event_name}</p>
+                                        </div>
+                                        <div className="text-right">
+                                          <p className="text-xs text-gray-600">Best Single</p>
+                                          <p className="font-mono font-bold text-gray-900 text-sm">
+                                            {formatTime(round.best_single)}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      {/* 5 Solves */}
+                                      <div className="grid grid-cols-5 gap-2">
+                                        {round.solves && round.solves.length > 0 ? (
+                                          round.solves.map((solve, solveIdx) => (
+                                            <div
+                                              key={solveIdx}
+                                              className={`p-2 rounded text-center text-xs font-mono ${
+                                                solve.penalty === 'DNF'
+                                                  ? 'bg-red-100 text-red-800'
+                                                  : solve.penalty === '+2'
+                                                  ? 'bg-yellow-100 text-yellow-800'
+                                                  : 'bg-white border border-gray-200 text-gray-900'
+                                              }`}
+                                            >
+                                              <p className="font-bold">{formatTime(solve.solve_time)}</p>
+                                              {solve.penalty && solve.penalty !== 'OK' && (
+                                                <p className="text-xs mt-0.5">{solve.penalty}</p>
+                                              )}
+                                            </div>
+                                          ))
+                                        ) : (
+                                          <div className="col-span-5 text-center text-xs text-gray-500 py-2">
+                                            No solves recorded
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Best Average */}
+                                      <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center">
+                                        <p className="text-xs text-gray-600">Best Average (5)</p>
+                                        <p className="font-mono font-bold text-gray-900 text-sm">
+                                          {formatTime(round.best_average)}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-gray-500 text-center py-4">No competition history yet</p>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* All Event Types Tab */}
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-4 text-lg">Performance Across All Events</h3>
+                        {Object.keys(studentProfile.cube_stats).length > 0 ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {Object.entries(studentProfile.cube_stats).map(([cubeName, stats]) => (
+                              <div key={cubeName} className="border border-gray-200 rounded-lg p-4">
+                                <h4 className="font-bold text-gray-900 mb-3">{cubeName}</h4>
+                                <div className="space-y-2">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm text-gray-600">Best Single:</span>
+                                    <span className="font-mono font-bold text-gray-900">{formatTime(stats.best_single)}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm text-gray-600">Best Average:</span>
+                                    <span className="font-mono font-bold text-gray-900">{formatTime(stats.best_average)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-gray-500 text-center py-4">No event data yet</p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">Unable to load profile data</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Footer */}
-      <footer className="container mx-auto px-4 py-8 border-t border-white/10">
-        <div className="flex items-center justify-between text-white/60 text-sm">
+      <footer className="container mx-auto px-4 py-8 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between text-gray-600 text-sm">
           <p>© 2025 Cubing Hub. All rights reserved.</p>
           <div className="flex gap-4">
-            <Link href="/" className="hover:text-white transition">
+            <Link href="/" className="hover:text-gray-900 transition">
               Home
             </Link>
-            <Link href="/competitions" className="hover:text-white transition">
+            <Link href="/competitions" className="hover:text-gray-900 transition">
               Competitions
             </Link>
           </div>

@@ -43,6 +43,7 @@ interface Result {
   attempts_completed: number;
   dnf_count: number;
   advancement_status?: string;
+  grade?: string;
   attempts: Array<{ time: number | null; is_dnf: boolean }>;
   is_record_breaker?: boolean;
 }
@@ -53,6 +54,7 @@ interface Competition {
   description?: string;
   location?: string;
   status: string;
+  competition_date?: string;
 }
 
 export default function CompetitionLivePublicPage({

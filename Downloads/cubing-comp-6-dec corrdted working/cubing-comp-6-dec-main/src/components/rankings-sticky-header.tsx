@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ChevronDown, TrendingUp, Zap } from 'lucide-react'
+import { ChevronDown, TrendingUp, Zap, Square } from 'lucide-react'
 
 interface StickyHeaderProps {
   selectedCategory: string
@@ -81,10 +81,9 @@ export default function RankingsStickyHeader({
             </div>
           </div>
 
-          {/* Sub-filters and Cube Selection */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Category Sub-filter Dropdown */}
-            {selectedCategory !== 'all' && getFilterOptions().length > 0 && (
+          {/* Category Sub-filter Dropdown */}
+          {selectedCategory !== 'all' && getFilterOptions().length > 0 && (
+            <div className="flex items-center gap-2">
               <Select value={selectedFilter} onValueChange={onFilterChange}>
                 <SelectTrigger className="w-48">
                   <SelectValue
@@ -99,24 +98,40 @@ export default function RankingsStickyHeader({
                   ))}
                 </SelectContent>
               </Select>
-            )}
+            </div>
+          )}
 
-            {/* Cube Type Dropdown */}
-            <Select value={selectedCube} onValueChange={onCubeChange}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Cube Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Cube Types</SelectItem>
-                {availableFilters.cubes.map((cube) => (
-                  <SelectItem key={cube.id} value={cube.name}>
-                    {cube.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Cube Type Selection */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <Square className="h-4 w-4" />
+              <span>Cube Types:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={selectedCube === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onCubeChange('all')}
+                className="shrink-0"
+              >
+                All Types
+              </Button>
+              {availableFilters.cubes.map((cube) => (
+                <Button
+                  key={cube.id}
+                  variant={selectedCube === cube.name ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => onCubeChange(cube.name)}
+                  className="shrink-0"
+                >
+                  {cube.name}
+                </Button>
+              ))}
+            </div>
+          </div>
 
-            {/* Ranking Metric Toggle */}
+          {/* Ranking Metric Toggle */}
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"

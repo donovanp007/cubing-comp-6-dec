@@ -10,7 +10,7 @@ interface PodiumResult {
   student_name: string;
   average_time: number;
   best_time: number;
-  grade: string;
+  grade?: string;
   gender?: string;
 }
 

@@ -8,9 +8,30 @@ import type { RankingEntry } from '@/app/actions/rankings'
 
 interface RankingsTableProps {
   rankings: RankingEntry[]
+  onSelectStudent?: (student: RankingEntry) => void
+  selectedCube?: string
 }
 
-export default function RankingsTable({ rankings }: RankingsTableProps) {
+export default function RankingsTable({ rankings, onSelectStudent, selectedCube = '3x3x3 Cube' }: RankingsTableProps) {
+  // Helper to find best stats for a student across all cubes
+  const getBestCubeStats = (cubeStats: any, forCube?: string) => {
+    if (forCube && forCube !== 'all') {
+      return cubeStats[forCube] || { best_single: 0, best_average: 0 }
+    }
+    // Find best times across all cubes
+    let bestAverage = 0
+    let bestSingle = 0
+    let bestCubeName = 'Unknown'
+    Object.entries(cubeStats).forEach(([cubeName, stats]: any) => {
+      if (stats.best_average > 0 && (!bestAverage || stats.best_average < bestAverage)) {
+        bestAverage = stats.best_average
+      }
+      if (stats.best_single > 0 && (!bestSingle || stats.best_single < bestSingle)) {
+        bestSingle = stats.best_single
+      }
+    })
+    return { best_single: bestSingle, best_average: bestAverage }
+  }
   const getMedalColor = (position: number) => {
     switch (position) {
       case 1:
@@ -50,7 +71,7 @@ export default function RankingsTable({ rankings }: RankingsTableProps) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-1">
       {rankings.map((entry, idx) => {
         const position = idx + 1
         const isMedal = position <= 3
@@ -58,64 +79,59 @@ export default function RankingsTable({ rankings }: RankingsTableProps) {
         return (
           <Card
             key={entry.student_id}
-            className={`border-2 ${getMedalColor(position)} transition-all hover:shadow-lg`}
+            className={`border-2 ${getMedalColor(position)} transition-all hover:shadow-lg cursor-pointer hover:scale-101`}
+            onClick={() => onSelectStudent?.(entry)}
           >
-            <div className="p-4">
+            <div className="p-1.5 sm:p-2">
               <div className="flex items-start justify-between gap-4">
                 {/* Rank and Student Info */}
                 <div className="flex items-start gap-3 flex-1 min-w-0">
                   <div className="flex-shrink-0">
                     {isMedal ? (
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-lg">
-                        {getMedalIcon(position)}
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm">
+                        {getMedalIcon(position) ? getMedalIcon(position) : position}
                       </div>
                     ) : (
-                      <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-bold text-lg">
+                      <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-bold text-sm">
                         {position}
                       </div>
                     )}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                      <p className="font-bold text-gray-900 truncate">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-0.5">
+                      <p className="font-bold text-xs sm:text-sm text-gray-900 truncate">
                         {entry.student_name}
                       </p>
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-0.5">
                         {entry.grade && (
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="outline" className="text-xs px-1.5 py-0">
                             {entry.grade}
                           </Badge>
                         )}
                         {entry.school && (
-                          <Badge variant="outline" className="text-xs">
-                            {entry.school}
+                          <Badge variant="outline" className="text-xs px-1.5 py-0 hidden sm:inline-flex">
+                            {entry.school.substring(0, 10)}
                           </Badge>
                         )}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 mt-2 text-sm text-gray-600">
+                    <div className="grid grid-cols-2 gap-1 mt-0.5 text-xs text-gray-600">
                       <div>
-                        <p className="text-xs font-medium text-gray-500 uppercase">
-                          Best Single
+                        <p className="text-xs font-medium text-gray-500 uppercase leading-tight">
+                          Single
                         </p>
-                        <p className="font-mono font-bold text-gray-900">
-                          {formatTime(entry.overall_best_single)}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {entry.best_single_event}
+                        <p className="font-mono font-bold text-xs text-gray-900">
+                          {formatTime(getBestCubeStats((entry.cube_stats as any), selectedCube).best_single || 0)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs font-medium text-gray-500 uppercase">
-                          Best Average
+                        <p className="text-xs font-medium text-gray-500 uppercase leading-tight">
+                          Average
                         </p>
-                        <p className="font-mono font-bold text-gray-900">
-                          {formatTime(entry.overall_best_average)}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {entry.best_average_event}
+                        <p className="font-mono font-bold text-xs text-gray-900">
+                          {formatTime(getBestCubeStats((entry.cube_stats as any), selectedCube).best_average || 0)}
                         </p>
                       </div>
                     </div>
@@ -124,35 +140,13 @@ export default function RankingsTable({ rankings }: RankingsTableProps) {
 
                 {/* Stats Section */}
                 <div className="flex-shrink-0 text-right">
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 uppercase">
-                        Events
-                      </p>
-                      <p className="text-lg font-bold text-gray-900">
-                        {entry.events_participated}
-                      </p>
-                    </div>
-                    {entry.records_count > 0 && (
-                      <div>
-                        <p className="text-xs font-medium text-yellow-600 uppercase">
-                          Records
-                        </p>
-                        <p className="text-lg font-bold text-yellow-600">
-                          {entry.records_count}
-                        </p>
-                      </div>
-                    )}
-                    {entry.pbs_count > 0 && (
-                      <div>
-                        <p className="text-xs font-medium text-green-600 uppercase">
-                          PBs
-                        </p>
-                        <p className="text-lg font-bold text-green-600">
-                          {entry.pbs_count}
-                        </p>
-                      </div>
-                    )}
+                  <div className="space-y-0 text-right">
+                    <p className="text-xs font-medium text-gray-500 uppercase leading-tight">
+                      Events
+                    </p>
+                    <p className="text-xs font-bold text-gray-900">
+                      {entry.events_participated}
+                    </p>
                   </div>
                 </div>
               </div>
