@@ -568,8 +568,7 @@ export default function PublicRankingsPage() {
                               const filteredRounds = comp.rounds.filter(r => r.event_name === selectedCube)
                               if (filteredRounds.length === 0) return null // Hide competitions with no rounds for this cube
 
-                              return (
-                              <div
+                              return (<div
                                 key={comp.competition_id}
                                 className="border border-gray-200 rounded-lg p-2 bg-white hover:shadow-md transition"
                               >
