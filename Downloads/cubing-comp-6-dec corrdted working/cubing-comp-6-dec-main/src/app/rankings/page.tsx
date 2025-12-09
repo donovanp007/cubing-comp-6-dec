@@ -559,11 +559,16 @@ export default function PublicRankingsPage() {
                               showHistory ? 'rotate-0' : '-rotate-90'
                             }`}
                           />
-                          Competition History ({studentProfile.competitions.length})
+                          Competition History - {selectedCube} ({studentProfile.competitions.filter(c => c.rounds.some(r => r.event_name === selectedCube)).length})
                         </button>
                         {showHistory && studentProfile.competitions.length > 0 ? (
                           <div className="space-y-2">
-                            {studentProfile.competitions.map((comp) => (
+                            {studentProfile.competitions.map((comp) => {
+                              // Filter rounds for selected cube
+                              const filteredRounds = comp.rounds.filter(r => r.event_name === selectedCube)
+                              if (filteredRounds.length === 0) return null // Hide competitions with no rounds for this cube
+
+                              return (
                               <div
                                 key={comp.competition_id}
                                 className="border border-gray-200 rounded-lg p-2 bg-white hover:shadow-md transition"
@@ -576,13 +581,13 @@ export default function PublicRankingsPage() {
                                     </p>
                                   </div>
                                   <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
-                                    {comp.rounds.length}R
+                                    {filteredRounds.length}R
                                   </span>
                                 </div>
 
                                 {/* Rounds with Solves */}
                                 <div className="space-y-1">
-                                  {comp.rounds.map((round) => (
+                                  {filteredRounds.map((round) => (
                                     <div key={round.round_id} className="border border-gray-200 rounded p-1.5 bg-gray-50">
                                       <div className="flex justify-between items-center mb-1">
                                         <div>
@@ -632,10 +637,11 @@ export default function PublicRankingsPage() {
                                   ))}
                                 </div>
                               </div>
-                            ))}
+                            )
+                            })}
                           </div>
                         ) : (
-                          <p className="text-gray-500 text-center py-2">No competition history yet</p>
+                          <p className="text-gray-500 text-center py-2">No competition history for {selectedCube}</p>
                         )}
                       </div>
                     </>
