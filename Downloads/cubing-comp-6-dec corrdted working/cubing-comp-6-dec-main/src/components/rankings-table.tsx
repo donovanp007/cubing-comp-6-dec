@@ -35,11 +35,11 @@ export default function RankingsTable({ rankings, onSelectStudent, selectedCube 
   const getMedalColor = (position: number) => {
     switch (position) {
       case 1:
-        return 'bg-yellow-100 border-yellow-300'
+        return 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-300'
       case 2:
-        return 'bg-gray-100 border-gray-300'
+        return 'bg-gradient-to-r from-slate-50 to-gray-50 border-slate-300'
       case 3:
-        return 'bg-orange-100 border-orange-300'
+        return 'bg-gradient-to-r from-orange-50 to-amber-50 border-orange-300'
       default:
         return 'bg-white border-gray-200'
     }
@@ -48,11 +48,11 @@ export default function RankingsTable({ rankings, onSelectStudent, selectedCube 
   const getMedalIcon = (position: number) => {
     switch (position) {
       case 1:
-        return <Trophy className="h-5 w-5 text-yellow-600" />
+        return <Trophy className="h-5 w-5 text-amber-500" />
       case 2:
-        return <Medal className="h-5 w-5 text-gray-500" />
+        return <Medal className="h-5 w-5 text-slate-400" />
       case 3:
-        return <Medal className="h-5 w-5 text-orange-600" />
+        return <Medal className="h-5 w-5 text-orange-500" />
       default:
         return null
     }
@@ -87,9 +87,17 @@ export default function RankingsTable({ rankings, onSelectStudent, selectedCube 
                 {/* Rank and Student Info */}
                 <div className="flex items-start gap-3 flex-1 min-w-0">
                   <div className="flex-shrink-0">
-                    {isMedal ? (
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm">
-                        {getMedalIcon(position) ? getMedalIcon(position) : position}
+                    {position === 1 ? (
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                        {getMedalIcon(position)}
+                      </div>
+                    ) : position === 2 ? (
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-slate-300 to-slate-400 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                        {getMedalIcon(position)}
+                      </div>
+                    ) : position === 3 ? (
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                        {getMedalIcon(position)}
                       </div>
                     ) : (
                       <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-bold text-sm">

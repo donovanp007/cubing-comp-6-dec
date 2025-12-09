@@ -58,10 +58,11 @@ export default function RankingsPage() {
         .select(
           `
           school_id,
-          schools(id, name),
+          schools!inner(id, name),
           competition_id
         `
-        );
+        )
+        .not('school_id', 'is', null);
 
       if (schoolError) {
         console.error("School rankings error:", schoolError);
@@ -72,9 +73,9 @@ export default function RankingsPage() {
       const schoolTotals = new Map<string, { name: string; points: number; competitions: Set<string>; students: Set<string> }>();
 
       if (schoolData) {
-        for (const record of schoolData) {
+        for (const record of schoolData as any) {
           const schoolId = record.school_id;
-          const schoolName = record.schools?.name || "Unknown School";
+          const schoolName = (record.schools as any)?.name || "Unknown School";
 
           if (!schoolTotals.has(schoolId)) {
             schoolTotals.set(schoolId, { name: schoolName, points: 0, competitions: new Set(), students: new Set() });
@@ -88,15 +89,16 @@ export default function RankingsPage() {
       // Get total points per school per competition
       const { data: standingsData } = await supabase
         .from("school_standings")
-        .select("school_id, schools(name), total_points, competition_id");
+        .select("school_id, schools!inner(name), total_points, competition_id")
+        .not('school_id', 'is', null);
 
       const schoolRankingsList: SchoolRanking[] = [];
       const schoolMap = new Map<string, { points: number; competitions: Set<string>; name: string }>();
 
       if (standingsData) {
-        for (const standing of standingsData) {
+        for (const standing of standingsData as any) {
           const schoolId = standing.school_id;
-          const schoolName = standing.schools?.name || "Unknown School";
+          const schoolName = (standing.schools as any)?.name || "Unknown School";
 
           if (!schoolMap.has(schoolId)) {
             schoolMap.set(schoolId, { points: 0, competitions: new Set(), name: schoolName });
@@ -131,7 +133,7 @@ export default function RankingsPage() {
       // Fetch overall student rankings
       const { data: studentData } = await supabase
         .from("students")
-        .select("id, first_name, last_name, grade, schools(name)");
+        .select("id, first_name, last_name, grade, schools!inner(name)");
 
       const studentMap = new Map<string, {
         first_name: string;
@@ -143,12 +145,12 @@ export default function RankingsPage() {
       }>();
 
       if (studentData) {
-        for (const student of studentData) {
+        for (const student of studentData as any) {
           studentMap.set(student.id, {
             first_name: student.first_name,
             last_name: student.last_name,
             grade: student.grade,
-            school_name: student.schools?.name || "Unknown School",
+            school_name: (student.schools as any)?.name || "Unknown School",
             points: 0,
             competitions: new Set(),
           });
