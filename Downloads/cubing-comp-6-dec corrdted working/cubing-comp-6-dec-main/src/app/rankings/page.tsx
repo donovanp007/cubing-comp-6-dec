@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Trophy, Users, Zap, Award, X } from 'lucide-react'
+import { Trophy, Users, Zap, Award, X, ChevronDown } from 'lucide-react'
 import { formatTime } from '@/lib/utils'
 import RankingsTable from '@/components/rankings-table'
 import RankingsStickyHeader from '@/components/rankings-sticky-header'
@@ -26,6 +26,7 @@ export default function PublicRankingsPage() {
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileTab, setProfileTab] = useState<'overview' | 'events'>('overview')
   const [competitionFilter, setCompetitionFilter] = useState<'all' | 'current' | 'past'>('all')
+  const [showHistory, setShowHistory] = useState(true)
 
   // Fetch rankings and event types
   useEffect(() => {
@@ -549,8 +550,18 @@ export default function PublicRankingsPage() {
 
                       {/* Competition History */}
                       <div>
-                        <h3 className="font-semibold text-gray-900 mb-2 text-lg">Competition History</h3>
-                        {studentProfile.competitions.length > 0 ? (
+                        <button
+                          onClick={() => setShowHistory(!showHistory)}
+                          className="flex items-center gap-2 font-semibold text-gray-900 mb-2 text-lg hover:text-blue-600 transition"
+                        >
+                          <ChevronDown
+                            className={`h-5 w-5 transition-transform ${
+                              showHistory ? 'rotate-0' : '-rotate-90'
+                            }`}
+                          />
+                          Competition History ({studentProfile.competitions.length})
+                        </button>
+                        {showHistory && studentProfile.competitions.length > 0 ? (
                           <div className="space-y-2">
                             {studentProfile.competitions.map((comp) => (
                               <div
