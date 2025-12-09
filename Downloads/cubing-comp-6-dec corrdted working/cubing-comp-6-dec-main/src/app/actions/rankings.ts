@@ -498,9 +498,10 @@ export async function getStudentProfileData(studentId: string): Promise<StudentP
     }
 
     // Fetch solves separately to avoid chaining issues
-    let solves
+    let solves: any[] = []
     let solvesError
     try {
+      console.log('[StudentProfile] Starting solves fetch for student', studentId)
       const result = await Promise.race([
         supabase
           .from('results')
@@ -508,22 +509,23 @@ export async function getStudentProfileData(studentId: string): Promise<StudentP
           .eq('student_id', studentId),
         new Promise((_, reject) => setTimeout(() => reject(new Error('Solves fetch timeout')), 15000))
       ]) as any
-      solves = result.data
+      console.log('[StudentProfile] Solves fetch completed, got', result?.data?.length, 'results')
+      solves = result.data || []
       solvesError = result.error
+      if (solvesError) {
+        console.warn('[StudentProfile] Solves fetch error:', solvesError)
+      }
     } catch (err) {
-      console.error('[StudentProfile] Solves fetch error:', err)
-      solves = []
-    }
-
-    if (solvesError) {
-      console.warn('[StudentProfile] Warning fetching solves (continuing with empty solves):', solvesError)
+      console.error('[StudentProfile] Solves fetch exception:', err)
       solves = []
     }
 
     const roundMap = new Map(rounds.map((r: any) => [r.id, r]))
     const compEventIds = [...new Set((rounds as any[]).map((r) => r.competition_event_id))]
+    console.log('[StudentProfile] Found', compEventIds.length, 'unique competition event IDs')
 
     // Fetch competition events and event types in parallel
+    console.log('[StudentProfile] Fetching competition events and event types...')
     const [
       { data: compEvents, error: compEventsError },
       { data: eventTypes, error: eventTypesError }
@@ -537,8 +539,10 @@ export async function getStudentProfileData(studentId: string): Promise<StudentP
         .select('id, display_name')
     ])
 
+    console.log('[StudentProfile] Competition events and event types fetch completed')
+
     if (compEventsError || !compEvents || eventTypesError || !eventTypes) {
-      console.error('[StudentProfile] Error fetching comp events or event types')
+      console.error('[StudentProfile] Error fetching comp events or event types', { compEventsError, eventTypesError })
       return null
     }
 
@@ -547,10 +551,13 @@ export async function getStudentProfileData(studentId: string): Promise<StudentP
     const competitionIds = [...new Set((compEvents as any[]).map((ce) => ce.competition_id))]
 
     // Fetch competitions
+    console.log('[StudentProfile] Fetching', competitionIds.length, 'competitions...')
     const { data: competitions, error: competitionsError } = await supabase
       .from('competitions')
       .select('id, name, competition_date')
       .in('id', competitionIds)
+
+    console.log('[StudentProfile] Competitions fetch completed')
 
     if (competitionsError || !competitions) {
       console.error('[StudentProfile] Error fetching competitions:', competitionsError)
@@ -670,6 +677,12 @@ export async function getStudentProfileData(studentId: string): Promise<StudentP
     }
 
     const elapsed = Date.now() - profileStartTime
+    console.log(`[StudentProfile] Successfully built profile:`, {
+      competitions: competitionsArray.length,
+      events: Object.keys(cube_stats).length,
+      solves: (solves || []).length,
+      elapsed: `${elapsed}ms`
+    })
     console.log(`[StudentProfile] Returning profile with ${competitionsArray.length} competitions (${elapsed}ms)`)
     return profile
   } catch (error) {
