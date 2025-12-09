@@ -55,40 +55,34 @@ export default function RankingsStickyHeader({
   }
 
   return (
-    <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-md">
-      <div className="container mx-auto px-4 py-4">
-        <div className="space-y-4">
-          {/* Category Tabs */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2">
-            <span className="text-sm font-semibold text-gray-700 shrink-0">
-              Filter by:
-            </span>
-            <div className="flex gap-2">
-              {categories.map((cat) => (
-                <Button
-                  key={cat}
-                  variant={selectedCategory === cat ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => {
-                    onCategoryChange(cat)
-                    onFilterChange('')
-                  }}
-                  className="capitalize shrink-0"
-                >
-                  {cat === 'all' ? 'All' : cat}
-                </Button>
-              ))}
-            </div>
+    <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+      <div className="container mx-auto px-4 py-2">
+        <div className="space-y-1">
+          {/* Category Tabs - Compact */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-1">
+            <span className="text-xs font-semibold text-gray-600 shrink-0">Filter:</span>
+            {categories.map((cat) => (
+              <Button
+                key={cat}
+                variant={selectedCategory === cat ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  onCategoryChange(cat)
+                  onFilterChange('')
+                }}
+                className="capitalize shrink-0 h-7 px-2 text-xs"
+              >
+                {cat === 'all' ? 'All' : cat}
+              </Button>
+            ))}
           </div>
 
-          {/* Category Sub-filter Dropdown */}
+          {/* Category Sub-filter Dropdown - Compact */}
           {selectedCategory !== 'all' && getFilterOptions().length > 0 && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <Select value={selectedFilter} onValueChange={onFilterChange}>
-                <SelectTrigger className="w-48">
-                  <SelectValue
-                    placeholder={`Select ${selectedCategory.slice(0, -1)}`}
-                  />
+                <SelectTrigger className="w-32 h-7">
+                  <SelectValue placeholder="Select..." />
                 </SelectTrigger>
                 <SelectContent>
                   {getFilterOptions().map((option) => (
@@ -101,74 +95,46 @@ export default function RankingsStickyHeader({
             </div>
           )}
 
-          {/* Cube Type Selection */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-              <Square className="h-4 w-4" />
-              <span>Cube Types:</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
+          {/* Cube Type Selection - Compact */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-1">
+            <span className="text-xs font-semibold text-gray-600 shrink-0">Cube:</span>
+            <Button
+              variant={selectedCube === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => onCubeChange('all')}
+              className="shrink-0 h-7 px-2 text-xs"
+            >
+              All
+            </Button>
+            {availableFilters.cubes.map((cube) => (
               <Button
-                variant={selectedCube === 'all' ? 'default' : 'outline'}
+                key={cube.id}
+                variant={selectedCube === cube.name ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => onCubeChange('all')}
-                className="shrink-0"
+                onClick={() => onCubeChange(cube.name)}
+                className="shrink-0 h-7 px-2 text-xs"
               >
-                All Types
+                {cube.name}
               </Button>
-              {availableFilters.cubes.map((cube) => (
-                <Button
-                  key={cube.id}
-                  variant={selectedCube === cube.name ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => onCubeChange(cube.name)}
-                  className="shrink-0"
-                >
-                  {cube.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Ranking Metric Toggle */}
-          <div className="flex items-center gap-2">
+            ))}
             <Button
               variant="outline"
               size="sm"
               onClick={onMetricToggle}
-              className="flex items-center gap-2"
+              className="shrink-0 h-7 px-2 text-xs ml-auto flex items-center gap-1"
             >
               {rankingMetric === 'average' ? (
                 <>
-                  <TrendingUp className="h-4 w-4" />
-                  <span>Average First</span>
+                  <TrendingUp className="h-3 w-3" />
+                  <span className="hidden sm:inline">Avg</span>
                 </>
               ) : (
                 <>
-                  <Zap className="h-4 w-4" />
-                  <span>Single First</span>
+                  <Zap className="h-3 w-3" />
+                  <span className="hidden sm:inline">Single</span>
                 </>
               )}
             </Button>
-          </div>
-
-          {/* Active Filters Display */}
-          <div className="flex flex-wrap items-center gap-2">
-            {selectedCategory !== 'all' && selectedFilter && (
-              <Badge variant="secondary" className="text-xs">
-                {selectedCategory}: {selectedFilter}
-              </Badge>
-            )}
-            {selectedCube !== 'all' && (
-              <Badge variant="secondary" className="text-xs">
-                Cube: {selectedCube}
-              </Badge>
-            )}
-            {rankingMetric === 'single' && (
-              <Badge variant="secondary" className="text-xs">
-                Single Time Priority
-              </Badge>
-            )}
           </div>
         </div>
       </div>
