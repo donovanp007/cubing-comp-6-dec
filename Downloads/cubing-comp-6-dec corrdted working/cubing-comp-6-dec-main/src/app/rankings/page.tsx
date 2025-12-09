@@ -307,58 +307,60 @@ export default function PublicRankingsPage() {
       </section>
 
       {/* Stats Cards */}
-      <section className="bg-white border-b border-gray-200">
-        <div className="container mx-auto px-4 py-8">
-          <div className="mb-6">
-            <p className="text-sm font-semibold text-gray-600">
-              Showing: <span className="text-blue-600 font-bold">{selectedCube}</span>
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {/* #1 Ranked Card */}
-            <div className="border border-gray-200 rounded-lg p-6 bg-white hover:shadow-md transition">
-              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">🏆 #1 Ranked</p>
-              {topStudent ? (
-                <>
-                  <p className="text-xl font-bold text-gray-900 mb-1">{topStudent.student_name}</p>
-                  <p className="text-sm text-gray-600">
-                    {rankingMetric === 'average'
-                      ? formatTime(topStudent.cube_stats?.[selectedCube]?.best_average || 0)
-                      : formatTime(topStudent.cube_stats?.[selectedCube]?.best_single || 0)}
-                  </p>
-                </>
-              ) : (
-                <p className="text-xl font-bold text-gray-400">-</p>
-              )}
-            </div>
-
-            {/* Competitors Card */}
-            <div className="border border-gray-200 rounded-lg p-6 bg-white hover:shadow-md transition">
-              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">👥 Competitors</p>
-              <p className="text-3xl font-bold text-gray-900">{activeStudents}</p>
-              <p className="text-xs text-gray-600 mt-1">active in {selectedCube}</p>
-            </div>
-
-            {/* Best Single Card */}
-            <div className="border border-gray-200 rounded-lg p-6 bg-white hover:shadow-md transition">
-              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">⚡ Best Single</p>
-              <p className="text-2xl font-bold text-green-600 font-mono">
-                {bestSingle ? formatTime(bestSingle) : '-'}
+      {!loading && (
+        <section className="bg-white border-b border-gray-200">
+          <div className="container mx-auto px-4 py-8">
+            <div className="mb-6">
+              <p className="text-sm font-semibold text-gray-600">
+                Showing: <span className="text-blue-600 font-bold">{selectedCube}</span>
               </p>
-              <p className="text-xs text-gray-600 mt-1">for {selectedCube}</p>
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {/* #1 Ranked Card */}
+              <div className="border border-gray-200 rounded-lg p-6 bg-white hover:shadow-md transition">
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">🏆 #1 Ranked</p>
+                {topStudent ? (
+                  <>
+                    <p className="text-xl font-bold text-gray-900 mb-1">{topStudent.student_name}</p>
+                    <p className="text-sm text-gray-600">
+                      {rankingMetric === 'average'
+                        ? formatTime(topStudent.cube_stats?.[selectedCube]?.best_average || 0)
+                        : formatTime(topStudent.cube_stats?.[selectedCube]?.best_single || 0)}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xl font-bold text-gray-400">-</p>
+                )}
+              </div>
 
-            {/* Best Average Card */}
-            <div className="border border-gray-200 rounded-lg p-6 bg-white hover:shadow-md transition">
-              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">📊 Best Average</p>
-              <p className="text-2xl font-bold text-blue-600 font-mono">
-                {bestAverage ? formatTime(bestAverage) : '-'}
-              </p>
-              <p className="text-xs text-gray-600 mt-1">for {selectedCube}</p>
+              {/* Competitors Card */}
+              <div className="border border-gray-200 rounded-lg p-6 bg-white hover:shadow-md transition">
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">👥 Competitors</p>
+                <p className="text-3xl font-bold text-gray-900">{activeStudents}</p>
+                <p className="text-xs text-gray-600 mt-1">active in {selectedCube}</p>
+              </div>
+
+              {/* Best Single Card */}
+              <div className="border border-gray-200 rounded-lg p-6 bg-white hover:shadow-md transition">
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">⚡ Best Single</p>
+                <p className="text-2xl font-bold text-green-600 font-mono">
+                  {bestSingle ? formatTime(bestSingle) : '-'}
+                </p>
+                <p className="text-xs text-gray-600 mt-1">for {selectedCube}</p>
+              </div>
+
+              {/* Best Average Card */}
+              <div className="border border-gray-200 rounded-lg p-6 bg-white hover:shadow-md transition">
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">📊 Best Average</p>
+                <p className="text-2xl font-bold text-blue-600 font-mono">
+                  {bestAverage ? formatTime(bestAverage) : '-'}
+                </p>
+                <p className="text-xs text-gray-600 mt-1">for {selectedCube}</p>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Filter Header */}
       {rankings.length > 0 && (
