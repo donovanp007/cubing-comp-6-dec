@@ -484,9 +484,10 @@ export async function getStudentProfileData(studentId: string): Promise<StudentP
         .select('id, round_number, round_name, competition_event_id')
         .in('id', roundIds),
       supabase
-        .from('solves')
-        .select('round_id, solve_time, penalty')
+        .from('results')
+        .select('round_id, time_milliseconds, is_dnf, penalty_seconds')
         .eq('student_id', studentId)
+        .in('round_id', roundIds)
     ])
 
     if (roundsError || !rounds || rounds.length === 0) {
@@ -534,13 +535,22 @@ export async function getStudentProfileData(studentId: string): Promise<StudentP
     const competitionMapLookup = new Map(competitions.map((c: any) => [c.id, c]))
     const solvesMap = new Map<string, any[]>()
     if (solves) {
-      ;(solves as any[]).forEach((solve) => {
-        if (!solvesMap.has(solve.round_id)) {
-          solvesMap.set(solve.round_id, [])
+      ;(solves as any[]).forEach((result) => {
+        if (!solvesMap.has(result.round_id)) {
+          solvesMap.set(result.round_id, [])
         }
-        solvesMap.get(solve.round_id)!.push({
-          solve_time: solve.solve_time,
-          penalty: solve.penalty
+
+        // Determine penalty string based on DNF flag
+        let penalty = 'OK'
+        if (result.is_dnf) {
+          penalty = 'DNF'
+        } else if (result.penalty_seconds && result.penalty_seconds > 0) {
+          penalty = '+2'
+        }
+
+        solvesMap.get(result.round_id)!.push({
+          solve_time: result.time_milliseconds || 0,
+          penalty: penalty
         })
       })
     }
