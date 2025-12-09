@@ -474,25 +474,50 @@ export async function getStudentProfileData(studentId: string): Promise<StudentP
     // Extract unique IDs
     const roundIds = [...new Set((finalScores as any[]).map((fs) => fs.round_id))]
 
-    // Fetch rounds, competition events, event types, and competitions IN PARALLEL
-    const [
-      { data: rounds, error: roundsError },
-      { data: solves, error: solvesError }
-    ] = await Promise.all([
-      supabase
-        .from('rounds')
-        .select('id, round_number, round_name, competition_event_id')
-        .in('id', roundIds),
-      supabase
-        .from('results')
-        .select('round_id, time_milliseconds, is_dnf, penalty_seconds')
-        .eq('student_id', studentId)
-        .in('round_id', roundIds)
-    ])
+    // Fetch rounds with timeout
+    let rounds
+    let roundsError
+    try {
+      const result = await Promise.race([
+        supabase
+          .from('rounds')
+          .select('id, round_number, round_name, competition_event_id')
+          .in('id', roundIds),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Rounds fetch timeout')), 15000))
+      ]) as any
+      rounds = result.data
+      roundsError = result.error
+    } catch (err) {
+      console.error('[StudentProfile] Rounds fetch error:', err)
+      return null
+    }
 
     if (roundsError || !rounds || rounds.length === 0) {
       console.error('[StudentProfile] Error fetching rounds:', roundsError)
       return null
+    }
+
+    // Fetch solves separately to avoid chaining issues
+    let solves
+    let solvesError
+    try {
+      const result = await Promise.race([
+        supabase
+          .from('results')
+          .select('round_id, time_milliseconds, is_dnf, penalty_seconds')
+          .eq('student_id', studentId),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Solves fetch timeout')), 15000))
+      ]) as any
+      solves = result.data
+      solvesError = result.error
+    } catch (err) {
+      console.error('[StudentProfile] Solves fetch error:', err)
+      solves = []
+    }
+
+    if (solvesError) {
+      console.warn('[StudentProfile] Warning fetching solves (continuing with empty solves):', solvesError)
+      solves = []
     }
 
     const roundMap = new Map(rounds.map((r: any) => [r.id, r]))
