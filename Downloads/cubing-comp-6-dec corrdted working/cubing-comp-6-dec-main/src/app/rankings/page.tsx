@@ -549,54 +549,52 @@ export default function PublicRankingsPage() {
 
                       {/* Competition History */}
                       <div>
-                        <h3 className="font-semibold text-gray-900 mb-4 text-lg">Competition History</h3>
+                        <h3 className="font-semibold text-gray-900 mb-2 text-lg">Competition History</h3>
                         {studentProfile.competitions.length > 0 ? (
-                          <div className="space-y-4">
+                          <div className="space-y-2">
                             {studentProfile.competitions.map((comp) => (
                               <div
                                 key={comp.competition_id}
-                                className="border border-gray-200 rounded-lg p-4 bg-white hover:shadow-md transition"
+                                className="border border-gray-200 rounded-lg p-2 bg-white hover:shadow-md transition"
                               >
-                                <div className="flex justify-between items-start mb-3">
+                                <div className="flex justify-between items-start mb-1">
                                   <div>
-                                    <h4 className="font-bold text-gray-900">{comp.competition_name}</h4>
-                                    <p className="text-xs text-gray-600">
+                                    <h4 className="font-bold text-gray-900 text-sm">{comp.competition_name}</h4>
+                                    <p className="text-xs text-gray-500">
                                       {new Date(comp.competition_date).toLocaleDateString()}
                                     </p>
                                   </div>
-                                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                    {comp.rounds.length} Round{comp.rounds.length !== 1 ? 's' : ''}
+                                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                                    {comp.rounds.length}R
                                   </span>
                                 </div>
 
                                 {/* Rounds with Solves */}
-                                <div className="space-y-3">
+                                <div className="space-y-1">
                                   {comp.rounds.map((round) => (
-                                    <div key={round.round_id} className="border border-gray-200 rounded p-3 bg-gray-50">
-                                      <div className="flex justify-between items-center mb-3">
+                                    <div key={round.round_id} className="border border-gray-200 rounded p-1.5 bg-gray-50">
+                                      <div className="flex justify-between items-center mb-1">
                                         <div>
-                                          <p className="font-semibold text-gray-900 text-sm">
-                                            {round.round_name || `Round ${round.round_number}`}
+                                          <p className="font-semibold text-gray-900 text-xs">
+                                            {round.round_name || `Rd${round.round_number}`}
                                           </p>
-                                          <p className="text-xs text-gray-600">{round.event_name}</p>
+                                          <p className="text-xs text-gray-500">{round.event_name}</p>
                                         </div>
                                         <div className="text-right">
-                                          <p className="text-xs text-gray-600">Best Single</p>
-                                          <p className="font-mono font-bold text-gray-900 text-sm">
-                                            {formatTime(round.best_single)}
-                                          </p>
+                                          <p className="text-xs text-gray-500">PB: {formatTime(round.best_single)}</p>
+                                          <p className="text-xs text-gray-500">Avg: {formatTime(round.best_average)}</p>
                                         </div>
                                       </div>
 
                                       {/* 5 Solves */}
-                                      <div className="grid grid-cols-5 gap-2">
+                                      <div className="grid grid-cols-5 gap-1">
                                         {round.solves && round.solves.length > 0 ? (
                                           round.solves.map((solve, solveIdx) => (
                                             <div
                                               key={solveIdx}
-                                              className={`p-2 rounded text-center text-xs font-mono relative ${
+                                              className={`p-1 rounded text-center text-xs font-mono relative ${
                                                 solve.isPB
-                                                  ? 'bg-amber-100 text-amber-900 ring-2 ring-amber-400 font-bold'
+                                                  ? 'bg-amber-100 text-amber-900 ring-1 ring-amber-400 font-bold'
                                                   : solve.penalty === 'DNF'
                                                   ? 'bg-red-100 text-red-800'
                                                   : solve.penalty === '+2'
@@ -605,27 +603,19 @@ export default function PublicRankingsPage() {
                                               }`}
                                             >
                                               {solve.isPB && (
-                                                <span className="absolute -top-1 -right-1 text-lg">⭐</span>
+                                                <span className="absolute -top-1.5 -right-1 text-sm">⭐</span>
                                               )}
                                               <p className="font-bold">{formatTime(solve.solve_time)}</p>
                                               {solve.penalty && solve.penalty !== 'OK' && (
-                                                <p className="text-xs mt-0.5">{solve.penalty}</p>
+                                                <p className="text-xs">{solve.penalty}</p>
                                               )}
                                             </div>
                                           ))
                                         ) : (
-                                          <div className="col-span-5 text-center text-xs text-gray-500 py-2">
-                                            No solves recorded
+                                          <div className="col-span-5 text-center text-xs text-gray-500 py-1">
+                                            No solves
                                           </div>
                                         )}
-                                      </div>
-
-                                      {/* Best Average */}
-                                      <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center">
-                                        <p className="text-xs text-gray-600">Best Average (5)</p>
-                                        <p className="font-mono font-bold text-gray-900 text-sm">
-                                          {formatTime(round.best_average)}
-                                        </p>
                                       </div>
                                     </div>
                                   ))}
@@ -634,7 +624,7 @@ export default function PublicRankingsPage() {
                             ))}
                           </div>
                         ) : (
-                          <p className="text-gray-500 text-center py-4">No competition history yet</p>
+                          <p className="text-gray-500 text-center py-2">No competition history yet</p>
                         )}
                       </div>
                     </>
