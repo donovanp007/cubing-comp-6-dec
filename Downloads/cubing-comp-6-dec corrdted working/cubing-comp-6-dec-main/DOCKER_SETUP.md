@@ -258,6 +258,10 @@ Status can be: `starting`, `healthy`, or `unhealthy`
 - [Next.js Docker Guide](https://nextjs.org/docs/deployment/docker)
 - [Alpine Linux Documentation](https://alpinelinux.org/)
 
+## Deployment Notes
+
+Your application is ready for production deployment on Coolify or any Docker-compatible platform.
+
 ## Support
 
 For issues or questions about Docker setup, check the Docker logs first:
