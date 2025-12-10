@@ -1,4 +1,4 @@
-# Build stage
+# Build stage - Production Dockerfile for Cubing Competition Hub
 FROM node:20-alpine AS builder
 
 WORKDIR /app
